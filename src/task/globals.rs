@@ -22,6 +22,10 @@ pub fn pop_context(old_link: Option<RcContext>) {
     set_current(old_current);
 }
 
+pub fn get_link() -> Option<RcContext> {
+    read_key(&LINK)
+}
+
 #[inline]
 pub fn set_link(new: Option<RcContext>) -> Option<RcContext> {
     set_key(&LINK, new)

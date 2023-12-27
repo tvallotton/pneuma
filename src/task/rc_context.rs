@@ -1,4 +1,5 @@
 use std::{
+    arch::asm,
     cell::{Cell, UnsafeCell},
     ptr::NonNull,
 };
@@ -10,7 +11,7 @@ use crate::{
 
 use super::{
     context::{Context, Status},
-    globals::{set_current, set_link},
+    globals::{get_link, set_current, set_link},
 };
 use std::alloc::dealloc;
 
@@ -27,10 +28,7 @@ impl RcContext {
         T: 'static,
     {
         let cx = Context::new::<T, F>(size, fun);
-
-        let mut cx = RcContext(cx);
-        cx.setup_registers();
-        cx
+        RcContext(cx).setup_registers()
     }
     /// # Safety
     /// The access must be unique. There cannot be any
@@ -43,7 +41,7 @@ impl RcContext {
     pub fn for_os_thread() -> RcContext {
         RcContext(Context::for_os_thread())
     }
-    pub fn setup_registers(&mut self) {
+    pub fn setup_registers(self) -> Self {
         // println!("{:x}, {:p}", self.stack.bottom(), self.stack.data);
 
         // self.stack.bottom()
@@ -51,24 +49,38 @@ impl RcContext {
         cx.registers.sp = cx.stack.bottom();
         cx.registers.arg = cx as *mut _ as u64;
         cx.registers.fun = Self::call_function as u64;
+        self
     }
 
     pub extern "C" fn call_function(link: RcContext, current: RcContext) {
         {
-            let current = unsafe { current.context() };
-            assert_eq!(current.status, Status::New);
-            let f = unsafe { current.fun.as_mut().unwrap() };
-            current.status = Status::Running;
-            f(current.out.cast());
+            let cx = unsafe { current.context() };
+            assert_eq!(cx.status, Status::New);
+            let f = unsafe { cx.fun.as_mut().unwrap() };
+            cx.status = Status::Running;
+            f(cx.out.cast());
+            cx.status = Status::Finished;
+            drop(current);
         }
-        // link.switch();
+        println!("before switch");
+        link.switch_no_save();
+        // unsafe {
+        //     asm!("udf #0");
+        // }
+    }
+    pub fn switch_no_save(self) {
+        unsafe { sys::switch_no_save(self) }
     }
 
     pub fn switch(&self) {
         let (old_link, link) = push_context(self.clone());
         debug_registers();
+        let sp: u64;
+        unsafe { asm!("mov {sp}, sp", sp = out(reg) sp) };
 
         unsafe { sys::switch_context(link.context(), self.context()) }
+
+        unsafe { asm!("mov sp, {sp}", sp = in(reg) sp) };
         debug_registers();
         println!("asd");
         unsafe {

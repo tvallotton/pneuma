@@ -29,12 +29,13 @@ fn smoke_test() {
 #[inline(always)]
 fn debug_registers() {
     let mut x29: u64;
-    let mut x30: u64;
     let mut sp: u64;
+    let mut x30: u64;
     unsafe {
         asm!("mov {x30}, x30", "mov {x29}, x29","mov {sp}, sp" ,x29 = out(reg) x29, x30 = out(reg) x30,  sp = out(reg) sp);
     }
-    dbg!(x29, x30, sp);
+    let _sp = sp;
+    dbg!(x29, _sp, x30);
 }
 // mod utils;
 

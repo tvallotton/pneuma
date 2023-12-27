@@ -4,11 +4,12 @@
 // #[cfg(target_arch = "aarch64")]
 // mod aarch64;
 
-use crate::task::Context;
+use crate::task::{Context, RcContext};
 
 // #[cfg(all(target_family = "aarch64", target_os = "linux"))]
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));
 
 extern "C" {
     pub(crate) fn switch_context(store: *mut Context, next: *const Context);
+    pub(crate) fn switch_no_save(next: RcContext);
 }
