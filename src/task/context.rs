@@ -1,5 +1,4 @@
 use crate::debug_registers;
-use crate::task::globals::push_context;
 
 use super::{registers::Registers, stack::Stack};
 use std::alloc::alloc;
@@ -24,7 +23,7 @@ pub struct Context {
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
     // fun_alloc: impl FnMut(&mut Option<T>),
-    // out_alloc: Result<T, Box<dyn Any + Send + Sync + 'static>,
+    // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
 }
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -47,15 +46,15 @@ impl Context {
             let ptr = alloc(layout);
             assert!(!ptr.is_null());
 
-            let fun_alloc = ptr.add(fun_offset).cast();
-            *fun_alloc = fun;
+            let fun_alloc = ptr.add(fun_offset) as *mut F;
+            fun_alloc.write(fun);
 
             let out = ptr
                 .add(out_offset)
-                .cast::<Result<T, Box<dyn Any + Send + Sync + 'static>>>()
+                .cast::<Result<T, Box<dyn Any + Send + 'static>>>()
                 as *mut dyn Any;
 
-            let mut cx = Context {
+            let cx = Context {
                 registers: zeroed(),
                 stack: Stack::new(size),
                 refcount: 1,
@@ -64,7 +63,7 @@ impl Context {
                 status: Status::New,
                 out,
             };
-            *ptr.cast() = cx;
+            ptr.cast::<Context>().write(cx);
             NonNull::new(ptr.cast()).unwrap()
         }
     }
@@ -79,7 +78,7 @@ impl Context {
 pub(crate) fn layout<T, F>() -> (Layout, usize, usize) {
     let raw_task = Layout::new::<Context>();
     let fun = Layout::new::<F>();
-    let out = Layout::new::<Result<T, Box<dyn Any + Send + Sync + 'static>>>();
+    let out = Layout::new::<Result<T, Box<dyn Any + Send + 'static>>>();
     let (layout, fun) = raw_task.extend(fun).unwrap();
     let (layout, out) = layout.extend(out).unwrap();
     (layout, fun, out)

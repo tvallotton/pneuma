@@ -1,5 +1,8 @@
+pub(crate) use context::Context;
+pub use join_handle::JoinHandle;
 pub use rc_context::RcContext;
 use std::{
+    any::Any,
     arch::asm,
     cell::Cell,
     marker::PhantomData,
@@ -7,14 +10,11 @@ use std::{
     ptr::{null_mut, NonNull},
 };
 
-pub(crate) use context::Context;
-
 use crate::{debug_registers, sys};
 
-use self::globals::{pop_context, push_context, set_current, set_link};
-
 pub mod context;
-pub mod globals;
+// pub mod globals;
+pub mod join_handle;
 pub mod rc_context;
 pub mod registers;
 mod stack;
@@ -36,13 +36,17 @@ impl<T> Task<T> {
         let f = move |out: *mut ()| {
             let closure = f.take().unwrap();
             let res = catch_unwind(AssertUnwindSafe(closure));
-            unsafe { *out.cast() = res }
+            unsafe {
+                out.cast::<Result<T, Box<dyn Any + Send + 'static>>>()
+                    .write(res)
+            }
+            dbg!()
         };
 
         Task(RcContext::new::<T, _>(size, f), PhantomData)
     }
 
-    pub fn switch(&self) {
-        self.0.switch();
+    pub fn switch(self, link: RcContext) {
+        self.0.switch(link);
     }
 }

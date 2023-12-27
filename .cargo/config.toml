@@ -1,6 +1,7 @@
 [build]
 target = "aarch64-unknown-linux-gnu"
 
+[target.aarch64-unknown-linux-gnu]
 
-# [target.aarch64-unknown-linux-gnu]
-# runner = "docker run -it rust:alpine"
+
+runner = "valgrind"

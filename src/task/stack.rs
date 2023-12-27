@@ -44,7 +44,10 @@ impl Stack {
 impl Drop for Stack {
     fn drop(&mut self) {
         if !self.data.is_null() {
-            unsafe { libc::munmap(self.data, self.size) };
+            unsafe {
+                std::alloc::dealloc(self.data.cast(), Layout::array::<u8>(self.size).unwrap())
+            }
+            // unsafe { libc::munmap(self.data, self.size) };
         }
     }
 }

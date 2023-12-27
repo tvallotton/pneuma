@@ -1,16 +1,17 @@
+use crate::task::JoinHandle;
+use crate::task::{RcContext, Task};
 use std::{cell::RefCell, collections::VecDeque};
 
-use crate::thread::{JoinHandle, Task};
-
 pub struct Executor {
-    run_queue: RefCell<VecDeque<Task>>,
+    run_queue: RefCell<VecDeque<RcContext>>,
 }
 
 impl Executor {
-    pub fn spawn<'a, F, T>(&self, f: F) -> JoinHandle<'a, T>
+    pub fn spawn<T, F>(&self, size: usize, f: F) -> JoinHandle<T>
     where
-        F: FnOnce() -> T + 'a,
+        F: FnOnce() -> T + 'static,
+        T: 'static,
     {
-      todo!()
+        JoinHandle(Task::new(size, f))
     }
 }

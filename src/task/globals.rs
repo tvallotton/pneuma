@@ -8,6 +8,7 @@ use std::{mem::forget, ptr::NonNull};
 thread_local! {
     static LINK: Cell<*mut Context> = const { Cell::new(null_mut()) };
     static CURRENT: Cell<*mut Context> = const { Cell::new(null_mut()) };
+    static THREAD_OS: Cell<*mut Context> = const { Cell::new(null_mut()) };
 }
 
 pub fn push_context(new_current: RcContext) -> (Option<RcContext>, RcContext) {

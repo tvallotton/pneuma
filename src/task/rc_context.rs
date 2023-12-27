@@ -1,25 +1,20 @@
 use std::{
     arch::asm,
+    backtrace::{self, Backtrace},
     cell::{Cell, UnsafeCell},
     ptr::NonNull,
 };
 
-use crate::{
-    debug_registers, sys,
-    task::globals::{pop_context, push_context},
-};
+use crate::{debug_registers, sys};
 
-use super::{
-    context::{Context, Status},
-    globals::{get_link, set_current, set_link},
-};
+use super::context::{Context, Status};
 use std::alloc::dealloc;
 
 /// This is a reference counted context.
 /// An RcContext may be either a type errased Task, or
 /// a OS thread context.
 #[repr(C)]
-pub struct RcContext(pub NonNull<Context>);
+pub struct RcContext(pub(crate) NonNull<Context>);
 
 impl RcContext {
     pub fn new<T, F>(size: usize, fun: F) -> Self
@@ -41,6 +36,7 @@ impl RcContext {
     pub fn for_os_thread() -> RcContext {
         RcContext(Context::for_os_thread())
     }
+
     pub fn setup_registers(self) -> Self {
         // println!("{:x}, {:p}", self.stack.bottom(), self.stack.data);
 
@@ -62,32 +58,14 @@ impl RcContext {
             cx.status = Status::Finished;
             drop(current);
         }
-        println!("before switch");
         link.switch_no_save();
-        // unsafe {
-        //     asm!("udf #0");
-        // }
     }
     pub fn switch_no_save(self) {
         unsafe { sys::switch_no_save(self) }
     }
 
-    pub fn switch(&self) {
-        let (old_link, link) = push_context(self.clone());
-        debug_registers();
-        let sp: u64;
-        unsafe { asm!("mov {sp}, sp", sp = out(reg) sp) };
-
-        unsafe { sys::switch_context(link.context(), self.context()) }
-
-        unsafe { asm!("mov sp, {sp}", sp = in(reg) sp) };
-        debug_registers();
-        println!("asd");
-        unsafe {
-            println!("{}", link.context().registers.link);
-        }
-
-        pop_context(old_link);
+    pub fn switch(self, link: RcContext) {
+        unsafe { sys::switch_context(link.0, self) }
     }
 }
 
@@ -101,10 +79,12 @@ impl Clone for RcContext {
 }
 
 impl Drop for RcContext {
+    #[track_caller]
     fn drop(&mut self) {
         // SAFETY: The reference doesn't escape the scope
         let cx = unsafe { self.context() };
-        cx.refcount += 1;
+        cx.refcount -= 1;
+        dbg!(cx.refcount);
 
         if cx.refcount != 0 {
             return;
@@ -113,13 +93,14 @@ impl Drop for RcContext {
         // SAFETY: The reference doesn't escape the scope:
         unsafe {
             match cx.status {
-                Status::Running => todo!(),
+                Status::Running => (),
                 Status::Taken => (),
                 Status::New => cx.fun.drop_in_place(),
                 Status::Finished => cx.out.drop_in_place(),
             }
             (cx as *mut Context).drop_in_place();
             let layout = cx.layout;
+            println!("dealloc");
             dealloc(self.0.as_ptr().cast(), layout);
         };
     }
