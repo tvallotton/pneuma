@@ -3,11 +3,15 @@ use std::alloc::alloc;
 use std::alloc::Layout;
 use std::any::Any;
 use std::cell::Cell;
+use std::cell::UnsafeCell;
 use std::mem::zeroed;
 use std::ptr::NonNull;
 
-/// The Context struct allocates all its fields along with the
-/// type errased closure and the output parameter.
+/// The thread context as it was left before the switch.
+///
+/// # Allocation
+/// It is import to remember that the context allocation
+/// is extended to contain the closure and its output.
 
 #[repr(C)]
 pub struct Context {
@@ -15,7 +19,7 @@ pub struct Context {
     pub stack: Stack,
     pub layout: Layout,
     pub status: Status,
-    pub refcount: Cell<u64>,
+    pub refcount: u64,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
     // fun_alloc: impl FnMut(&mut Option<T>),
@@ -52,7 +56,7 @@ impl Context {
             *ptr.cast() = Context {
                 registers: zeroed(),
                 stack: Stack::new(size),
-                refcount: Cell::new(1),
+                refcount: 1,
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 layout,
                 status: Status::New,

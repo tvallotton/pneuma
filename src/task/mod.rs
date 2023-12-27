@@ -29,7 +29,7 @@ impl<T> Task<T> {
         // And to type errase the closure.
         let mut f = Some(f);
         let f = move |out: *mut ()| {
-            let closure = (&mut f).take().unwrap();
+            let closure = f.take().unwrap();
             let res = catch_unwind(AssertUnwindSafe(|| closure));
             unsafe { *out.cast() = res }
         };

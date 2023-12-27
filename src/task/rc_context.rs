@@ -1,4 +1,7 @@
-use std::{cell::Cell, ptr::NonNull};
+use std::{
+    cell::{Cell, UnsafeCell},
+    ptr::NonNull,
+};
 
 use super::context::{Context, Status};
 use std::alloc::dealloc;
@@ -14,42 +17,48 @@ impl RcContext {
         F: FnMut(*mut ()) + 'static,
         T: 'static,
     {
-        RcContext(Context::new::<T, F>(size, fun))
+        let cx = Context::new::<T, F>(size, fun);
+        RcContext(cx)
     }
-
-    pub fn refcount(&self) -> &Cell<u64> {
-        unsafe { &self.0.as_ref().refcount }
+    /// # Safety
+    /// The access must be unique. There cannot be any
+    /// other mutable aliases to this context.
+    #[allow(clippy::mut_from_ref)]
+    pub unsafe fn context(&self) -> &mut Context {
+        &mut *self.0.as_ptr()
     }
 }
 
 impl Clone for RcContext {
     fn clone(&self) -> Self {
         // SAFETY: The reference doesn't escape the scope
-        let count = self.refcount().get();
-        self.refcount().set(count + 1);
+        let cx = unsafe { self.context() };
+        cx.refcount += 1;
         RcContext(self.0)
     }
 }
 
 impl Drop for RcContext {
     fn drop(&mut self) {
-        let refcount = self.refcount().get() - 1;
-        self.refcount().set(refcount);
-        if refcount != 0 {
+        // SAFETY: The reference doesn't escape the scope
+        let cx = unsafe { self.context() };
+        cx.refcount += 1;
+
+        if cx.refcount != 0 {
             return;
         }
+
         // SAFETY: The reference doesn't escape the scope:
         unsafe {
-            match self.0.as_mut().status {
+            match cx.status {
                 Status::Running => todo!(),
                 Status::Taken => (),
-                Status::New => self.0.as_mut().fun.drop_in_place(),
-                Status::Finished => self.0.as_mut().out.drop_in_place(),
+                Status::New => cx.fun.drop_in_place(),
+                Status::Finished => cx.out.drop_in_place(),
             }
-
-            self.0.as_ptr().drop_in_place();
-            
-            dealloc(self.0.as_ptr().cast(), self.0.as_ref().layout);
+            (cx as *mut Context).drop_in_place();
+            let layout = cx.layout;
+            dealloc(self.0.as_ptr().cast(), layout);
         };
     }
 }

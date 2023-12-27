@@ -7,7 +7,7 @@ mod globals;
 
 pub struct Runtime {
     executor: Executor,
-    reactor: Reactor,
+    // reactor: Reactor,
 }
 
 impl Runtime {
