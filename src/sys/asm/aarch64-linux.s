@@ -13,148 +13,84 @@
 // * z8-z23 ?
 // * v8-v15 ?
 
-.global    _makecontext
-.type      _makecontext, "function"
-.p2align   4
-
-//   pub fn _makecontext(
-//       x0  ucp: *mut mcontext_t,  
-//       x1  fun: extern "C" fn(),
-//       x2  arg: *mut u8,
-//       x3  stack: *mut u8,
-//       x4  link: &mut mcontext_t,
-//     );
-_make_context:
-    // store sp and function
-    stp x3, x1, [x0, #160]
-    // store FP and LN
-    stp x3, x5, [x0, #80]
-
-    // store argument
-    str x2, [x0, #176]
-
-    // get function ptr from link 
-    ldr x4, [x4, #168]
-
-    // store FP and LN
-    // note here we set FP to null as it needs to be initialized by _setcontext
-    stp xzr, x4, [x0, #80]
-    
+__on_coroutine_exit: 
+    udf #0
     ret
 
-
-
-start: 
-
-
-.global    get_context
-.type      get_context, "function"
-.p2align   4
-get_context: 
-    mov x2, sp
-    ldr x3, __on_thread_exit
-    stp x2, x3, [x0, #0]
-
-    // We skip the argument pointer since 
-    // the coroutine alreadys started
-
-    // store frame pointer and link
-
-    // General purpose registers
-    stp x29, x30, [x0, #32]
-    stp x27, x28, [x0, #48]
-    stp x25, x26, [x0, #64]
-    stp x23, x24, [x0, #80]
-    stp x21, x22, [x0, #96]
-    stp x19, x20, [x0, #112]
-    
-
-    // store d registers
-    stp d8,  d9,  [x0, #128]
-    stp d10, d11, [x0, #144]
-    stp d12, d13, [x0, #160]
-    stp d14, d15, [x0, #176]
-
-
-
-__on_thread_exit:
-    
-    ret
-
-
-
-
+// #[repr(C)]
+// pub struct Registers 
+//     pub sp: u64,
+//     pub fun: u64,
+//     pub arg: u64,
+//     pub frame: u64,
+//     pub link: u64,
+//     pub general: [u64; 59],
+// 
 
 .global    switch_context
 .type      switch_context, "function"
 .p2align   4
 
 switch_context:
-
-    // Store context
-    // store sp and return label
+    // # Store context
+    // store sp and function
     mov x2, sp
-    ldr x3, __on_thread_exit
-    
+    ldr x3, __on_coroutine_exit 
     stp x2, x3, [x0, #0]
 
     // We skip the argument pointer since 
     // the coroutine alreadys started
-    
+    // str x
 
     // store frame pointer and link
-
     // General purpose registers
-    stp x29, x30, [x0, #32]
-    stp x27, x28, [x0, #48]
-    stp x25, x26, [x0, #64]
-    stp x23, x24, [x0, #80]
-    stp x21, x22, [x0, #96]
-    stp x19, x20, [x0, #112]
+    stp x29, x30, [x0, #24]
+    stp x27, x28, [x0, #40]
+    stp x25, x26, [x0, #56]
+    stp x23, x24, [x0, #72]
+    stp x21, x22, [x0, #88]
+    stp x19, x20, [x0, #104]
     
 
     // store d registers
-    stp d8,  d9,  [x0, #128]
-    stp d10, d11, [x0, #144]
-    stp d12, d13, [x0, #160]
-    stp d14, d15, [x0, #176]
+    stp d8,  d9,  [x0, #120]
+    stp d10, d11, [x0, #136]
+    stp d12, d13, [x0, #152]
+    stp d14, d15, [x0, #168]
     
     
     
-    // Load context
+    // # Load context
     // General purpose registers
-    ldp x29, x30, [x1, #32]
-    ldp x27, x28, [x1, #48]
-    ldp x25, x26, [x1, #64]
-    ldp x23, x24, [x1, #80]
-    ldp x21, x22, [x1, #96]
-    ldp x19, x20, [x1, #112]
+    ldp x29, x30, [x1, #24]
+    ldp x27, x28, [x1, #40]
+    ldp x25, x26, [x1, #56]
+    ldp x23, x24, [x1, #72]
+    ldp x21, x22, [x1, #88]
+    ldp x19, x20, [x1, #104]
 
     // load d registers
-    ldp d8,  d9,  [x1, #128]
-    ldp d10, d11, [x1, #144]
-    ldp d12, d13, [x1, #160]
-    ldp d14, d15, [x1, #176]
+    ldp d8,  d9,  [x1, #120]
+    ldp d10, d11, [x1, #136]
+    ldp d12, d13, [x1, #152]
+    ldp d14, d15, [x1, #168]
     
     // load sp and function
-    ldp x2, x3, [x0, #160]
+    ldp x2, x3, [x1, #0]
     mov sp, x2
+
+    
     
     // check if x29 has been initialized
     cbnz x29, jump_to_new_context    
     
-    udf #0
+    // initialize LN and FP to return to the parent original coroutine.
+    ldp x29, x30, [x0, #24]
 
-    // initialize LN and FD to return to the parent original coroutine.
-    ldp x29, x30, [x0, #16]
+    //adr x29, __on_coroutine_exit
 
-
-
-
-
-
+    
 jump_to_new_context:
-    // load argument if any
-    str x0, [x0, #176]
+
     br x3
 

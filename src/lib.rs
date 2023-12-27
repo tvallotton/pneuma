@@ -5,6 +5,8 @@
 // mod reactor;
 // mod runtime;
 
+use std::arch::asm;
+
 use crate::task::Task;
 
 // mod runtime;
@@ -13,19 +15,26 @@ pub mod task;
 
 #[test]
 fn smoke_test() {
-    extern "C" fn fun(x: u64) {
-        println!("{x:?}");
+    println!("started");
+    let task = Task::new(1 << 15, || {
+        println!("while inside");
+        debug_registers();
+        println!("exiting")
+    });
+
+    task.switch();
+
+    println!("finished");
+}
+#[inline(always)]
+fn debug_registers() {
+    let mut x29: u64;
+    let mut x30: u64;
+    let mut sp: u64;
+    unsafe {
+        asm!("mov {x30}, x30", "mov {x29}, x29","mov {sp}, sp" ,x29 = out(reg) x29, x30 = out(reg) x30,  sp = out(reg) sp);
     }
-
-    let task = Task::new(10, || fun(1));
-    let other = task.clone();
-    drop(task);
-    drop(other);
-
-    // let task = task::Task::<()>::new(1 << 14, fun);
-
-    // let cx = Context
-    // task.switch(cx)
+    dbg!(x29, x30, sp);
 }
 // mod utils;
 

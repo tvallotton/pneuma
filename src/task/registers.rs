@@ -2,11 +2,12 @@ use std::mem::zeroed;
 
 #[repr(C)]
 pub struct Registers {
-    sp: u64,
-    arg: u64,
-    frame: u64,
-    link: u64,
-    general: [u64; 60],
+    pub sp: u64,
+    pub fun: u64,
+    pub arg: u64,
+    pub frame: u64,
+    pub link: u64,
+    pub general: [u64; 59],
 }
 
 impl Registers {

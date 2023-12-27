@@ -1,12 +1,13 @@
+use crate::debug_registers;
+use crate::task::globals::push_context;
+
 use super::{registers::Registers, stack::Stack};
 use std::alloc::alloc;
 use std::alloc::Layout;
 use std::any::Any;
-use std::cell::Cell;
-use std::cell::UnsafeCell;
+use std::arch::asm;
 use std::mem::zeroed;
 use std::ptr::NonNull;
-
 /// The thread context as it was left before the switch.
 ///
 /// # Allocation
@@ -28,7 +29,7 @@ pub struct Context {
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
 pub enum Status {
-    New = 0,
+    New = 4,
     Running = 1,
     Finished = 2,
     Taken = 3,
@@ -48,12 +49,13 @@ impl Context {
 
             let fun_alloc = ptr.add(fun_offset).cast();
             *fun_alloc = fun;
+
             let out = ptr
                 .add(out_offset)
                 .cast::<Result<T, Box<dyn Any + Send + Sync + 'static>>>()
                 as *mut dyn Any;
 
-            *ptr.cast() = Context {
+            let mut cx = Context {
                 registers: zeroed(),
                 stack: Stack::new(size),
                 refcount: 1,
@@ -62,21 +64,15 @@ impl Context {
                 status: Status::New,
                 out,
             };
-
+            *ptr.cast() = cx;
             NonNull::new(ptr.cast()).unwrap()
         }
     }
 
-    // pub const fn take_output<T>(&mut self) -> Option<T> {
-    //     let out = unsafe { &mut *self.out };
-
-    // }
-
-    pub extern "C" fn call_function(&mut self) {
-        assert_eq!(self.status, Status::New);
-        let f = unsafe { self.fun.as_mut().unwrap_unchecked() };
-        self.status = Status::Running;
-        f(self.out.cast());
+    pub fn for_os_thread() -> NonNull<Context> {
+        let mut cx = Self::new::<(), _>(0, |_| ());
+        unsafe { cx.as_mut().status = Status::Running };
+        cx
     }
 }
 

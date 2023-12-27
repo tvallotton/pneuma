@@ -10,21 +10,31 @@ thread_local! {
     static CURRENT: Cell<*mut Context> = const { Cell::new(null_mut()) };
 }
 
-pub fn get_link() -> Option<RcContext> {
-    read_key(&LINK)
+pub fn push_context(new_current: RcContext) -> (Option<RcContext>, RcContext) {
+    let new_link = set_current(Some(new_current));
+    let new_link = new_link.unwrap_or_else(RcContext::for_os_thread);
+    let old_link = set_link(Some(new_link.clone()));
+    (old_link, new_link)
 }
 
+pub fn pop_context(old_link: Option<RcContext>) {
+    let old_current = set_link(old_link);
+    set_current(old_current);
+}
+
+#[inline]
 pub fn set_link(new: Option<RcContext>) -> Option<RcContext> {
     set_key(&LINK, new)
 }
+#[inline]
 pub fn read_current() -> Option<RcContext> {
     read_key(&CURRENT)
 }
-
-pub fn take_current(new: Option<RcContext>) -> Option<RcContext> {
+#[inline]
+pub fn set_current(new: Option<RcContext>) -> Option<RcContext> {
     set_key(&CURRENT, new)
 }
-
+#[inline]
 fn read_key(key: &'static LocalKey<Cell<*mut Context>>) -> Option<RcContext> {
     let cx = key.get();
     let cx = NonNull::new(cx)?;
@@ -33,6 +43,7 @@ fn read_key(key: &'static LocalKey<Cell<*mut Context>>) -> Option<RcContext> {
     forget(cx);
     Some(out)
 }
+#[inline]
 fn set_key(
     key: &'static LocalKey<Cell<*mut Context>>,
     new: Option<RcContext>,
