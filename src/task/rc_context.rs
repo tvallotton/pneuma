@@ -2,10 +2,11 @@ use std::{
     arch::asm,
     backtrace::{self, Backtrace},
     cell::{Cell, UnsafeCell},
+    ops::Deref,
     ptr::NonNull,
 };
 
-use crate::{debug_registers, sys};
+use crate::sys;
 
 use super::context::{Context, Status};
 use std::alloc::dealloc;
@@ -14,7 +15,7 @@ use std::alloc::dealloc;
 /// An RcContext may be either a type errased Task, or
 /// a OS thread context.
 #[repr(C)]
-pub struct RcContext(pub(crate) NonNull<Context>);
+pub(crate) struct RcContext(pub(crate) NonNull<Context>);
 
 impl RcContext {
     pub fn new<T, F>(size: usize, fun: F) -> Self
@@ -22,8 +23,7 @@ impl RcContext {
         F: FnMut(*mut ()) + 'static,
         T: 'static,
     {
-        let cx = Context::new::<T, F>(size, fun);
-        RcContext(cx).setup_registers()
+        Context::new::<T, F>(size, fun)
     }
     /// # Safety
     /// The access must be unique. There cannot be any
@@ -34,7 +34,7 @@ impl RcContext {
     }
 
     pub fn for_os_thread() -> RcContext {
-        RcContext(Context::for_os_thread())
+        Context::for_os_thread()
     }
 
     pub fn setup_registers(self) -> Self {
@@ -51,11 +51,11 @@ impl RcContext {
     pub extern "C" fn call_function(link: RcContext, current: RcContext) {
         {
             let cx = unsafe { current.context() };
-            assert_eq!(cx.status, Status::New);
+            assert_eq!(current.status.get(), Status::New);
             let f = unsafe { cx.fun.as_mut().unwrap() };
-            cx.status = Status::Running;
+            current.status.set(Status::Running);
             f(cx.out.cast());
-            cx.status = Status::Finished;
+            current.status.set(Status::Finished);
             drop(current);
         }
         link.switch_no_save();
@@ -72,8 +72,8 @@ impl RcContext {
 impl Clone for RcContext {
     fn clone(&self) -> Self {
         // SAFETY: The reference doesn't escape the scope
-        let cx = unsafe { self.context() };
-        cx.refcount += 1;
+        let count = self.refcount.get() + 1;
+        self.refcount.set(count);
         RcContext(self.0)
     }
 }
@@ -81,27 +81,31 @@ impl Clone for RcContext {
 impl Drop for RcContext {
     #[track_caller]
     fn drop(&mut self) {
-        // SAFETY: The reference doesn't escape the scope
-        let cx = unsafe { self.context() };
-        cx.refcount -= 1;
-        dbg!(cx.refcount);
+        let count = self.refcount.get() - 1;
+        self.refcount.set(count);
 
-        if cx.refcount != 0 {
+        if count != 0 {
             return;
         }
 
         // SAFETY: The reference doesn't escape the scope:
         unsafe {
-            match cx.status {
+            match self.status.get() {
                 Status::Running => (),
                 Status::Taken => (),
-                Status::New => cx.fun.drop_in_place(),
-                Status::Finished => cx.out.drop_in_place(),
+                Status::New => self.fun.drop_in_place(),
+                Status::Finished => self.out.drop_in_place(),
             }
-            (cx as *mut Context).drop_in_place();
-            let layout = cx.layout;
+            let layout = self.layout;
+            self.0.as_ptr().drop_in_place();
             println!("dealloc");
             dealloc(self.0.as_ptr().cast(), layout);
         };
+    }
+}
+impl Deref for RcContext {
+    type Target = Context;
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.0.as_ref() }
     }
 }

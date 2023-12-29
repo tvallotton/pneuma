@@ -1,12 +1,13 @@
-use crate::debug_registers;
+use crate::task::RcContext;
 
 use super::{registers::Registers, stack::Stack};
 use std::alloc::alloc;
 use std::alloc::Layout;
 use std::any::Any;
-use std::arch::asm;
+use std::cell::Cell;
 use std::mem::zeroed;
 use std::ptr::NonNull;
+
 /// The thread context as it was left before the switch.
 ///
 /// # Allocation
@@ -14,18 +15,19 @@ use std::ptr::NonNull;
 /// is extended to contain the closure and its output.
 
 #[repr(C)]
-pub struct Context {
+pub(crate) struct Context {
     pub registers: Registers,
     pub stack: Stack,
     pub layout: Layout,
-    pub status: Status,
-    pub refcount: u64,
+    pub status: Cell<Status>,
+    pub refcount: Cell<u64>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
     // fun_alloc: impl FnMut(&mut Option<T>),
     // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
 }
-#[derive(PartialEq, Eq, Debug)]
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(C)]
 pub enum Status {
     New = 4,
@@ -35,7 +37,7 @@ pub enum Status {
 }
 
 impl Context {
-    pub fn new<T, F>(size: usize, fun: F) -> NonNull<Context>
+    pub fn new<T, F>(size: usize, fun: F) -> RcContext
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -57,20 +59,21 @@ impl Context {
             let cx = Context {
                 registers: zeroed(),
                 stack: Stack::new(size),
-                refcount: 1,
+                refcount: 1.into(),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
+                status: Status::New.into(),
                 layout,
-                status: Status::New,
                 out,
             };
             ptr.cast::<Context>().write(cx);
-            NonNull::new(ptr.cast()).unwrap()
+            let cx = RcContext(NonNull::new(ptr.cast()).unwrap());
+            cx.setup_registers()
         }
     }
 
-    pub fn for_os_thread() -> NonNull<Context> {
+    pub fn for_os_thread() -> RcContext {
         let mut cx = Self::new::<(), _>(0, |_| ());
-        unsafe { cx.as_mut().status = Status::Running };
+        cx.status.set(Status::Running);
         cx
     }
 }

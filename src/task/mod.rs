@@ -1,6 +1,6 @@
 pub(crate) use context::Context;
 pub use join_handle::JoinHandle;
-pub use rc_context::RcContext;
+pub(crate) use rc_context::RcContext;
 use std::{
     any::Any,
     arch::asm,
@@ -10,7 +10,7 @@ use std::{
     ptr::{null_mut, NonNull},
 };
 
-use crate::{debug_registers, sys};
+use crate::sys;
 
 pub mod context;
 // pub mod globals;
