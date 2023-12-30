@@ -1,8 +1,5 @@
 use std::{
     any::Any,
-    arch::asm,
-    backtrace::{self, Backtrace},
-    cell::{Cell, UnsafeCell},
     io,
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -11,17 +8,20 @@ use std::{
 
 use pneuma::sys;
 
-use super::context::{Context, Status};
+use super::{
+    builder::Builder,
+    context::{Context, Status},
+};
 use std::alloc::dealloc;
 
 /// This is a reference counted context.
-/// An RcContext may be either a type errased Task, or
+/// An Thread may be either a type errased Task, or
 /// a OS thread context.
 #[repr(C)]
-pub(crate) struct RcContext(pub(crate) NonNull<Context>);
+pub(crate) struct Thread(pub(crate) NonNull<Context>);
 
-impl RcContext {
-    pub fn new<T, F>(size: usize, f: F) -> io::Result<RcContext>
+impl Thread {
+    pub fn new<T, F>(f: F, builder: Builder) -> io::Result<Thread>
     where
         F: FnOnce() -> T + 'static,
         T: 'static,
@@ -37,17 +37,10 @@ impl RcContext {
                     .write(res)
             }
         };
-        Context::new::<T, _>(size, fun)
-    }
-    /// # Safety
-    /// The access must be unique. There cannot be any
-    /// other mutable aliases to this context.
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn context(&self) -> &mut Context {
-        &mut *self.0.as_ptr()
+        Context::new::<T, _>(fun, builder)
     }
 
-    pub fn for_os_thread() -> RcContext {
+    pub(crate) fn for_os_thread() -> Thread {
         Context::for_os_thread()
     }
 
@@ -59,13 +52,12 @@ impl RcContext {
         self
     }
 
-    pub extern "C" fn call_function(link: RcContext, current: RcContext) {
+    pub extern "C" fn call_function(link: Thread, current: Thread) {
         {
-            let cx = unsafe { current.context() };
             assert_eq!(current.status.get(), Status::New);
-            let f = unsafe { cx.fun.as_mut().unwrap() };
+            let f = unsafe { current.fun.as_mut().unwrap() };
             current.status.set(Status::Running);
-            f(cx.out.cast());
+            f(current.out.cast());
             current.status.set(Status::Finished);
             drop(current);
         }
@@ -75,49 +67,46 @@ impl RcContext {
         unsafe { sys::switch_no_save(self) }
     }
 
-    pub fn switch(self, link: RcContext) {
+    pub fn switch(self, link: Thread) {
         unsafe { sys::switch_context(link.0, self) }
     }
 }
 
-impl Clone for RcContext {
+impl Clone for Thread {
     fn clone(&self) -> Self {
         // SAFETY: The reference doesn't escape the scope
         let count = self.refcount.get() + 1;
         self.refcount.set(count);
-        RcContext(self.0)
+        Thread(self.0)
     }
 }
 
-impl Drop for RcContext {
+impl Drop for Thread {
     #[track_caller]
     fn drop(&mut self) {
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
+        let layout = self.layout;
 
         if count != 0 {
             return;
         }
 
-        // SAFETY: The reference doesn't escape the scope:
+        match self.status.get() {
+            Status::OsThread => (),
+            Status::Running => return self.runtime.executor.push(self.clone()),
+            Status::Taken => (),
+            Status::New => unsafe { self.fun.drop_in_place() },
+            Status::Finished => unsafe { self.out.drop_in_place() },
+        }
+
         unsafe {
-            match self.status.get() {
-                Status::OsThread => (),
-                Status::Running => {
-                    todo!("we should switch to the running thread so it can finish")
-                }
-                Status::Taken => (),
-                Status::New => self.fun.drop_in_place(),
-                Status::Finished => self.out.drop_in_place(),
-            }
-            let layout = self.layout;
             self.0.as_ptr().drop_in_place();
-            println!("dealloc");
             dealloc(self.0.as_ptr().cast(), layout);
         };
     }
 }
-impl Deref for RcContext {
+impl Deref for Thread {
     type Target = Context;
     fn deref(&self) -> &Self::Target {
         unsafe { self.0.as_ref() }

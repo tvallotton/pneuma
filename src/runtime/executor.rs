@@ -1,10 +1,10 @@
-use pneuma::task::RcContext;
+use pneuma::task::Thread;
 use pneuma::task::{JoinHandle, Stack};
 use std::io;
 use std::{cell::RefCell, collections::VecDeque};
 
 pub(crate) struct Executor {
-    pub run_queue: RefCell<VecDeque<RcContext>>,
+    pub run_queue: RefCell<VecDeque<Thread>>,
     pub unused_stacks: RefCell<Vec<Stack>>,
 }
 
@@ -16,12 +16,12 @@ impl Executor {
         }
     }
 
-    pub fn spawn<T, F>(&self, size: usize, f: F) -> io::Result<JoinHandle<T>>
-    where
-        F: FnOnce() -> T + 'static,
-        T: 'static,
-    {
-        JoinHandle::new(size, f)
+    pub fn push(&self, thread: Thread) {
+        self.run_queue.borrow_mut().push_back(thread);
+    }
+
+    pub fn pop(&self) -> Option<Thread> {
+        self.run_queue.borrow_mut().pop_front()
     }
 
     pub fn is_empty(&self) -> bool {

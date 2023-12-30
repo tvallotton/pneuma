@@ -8,25 +8,36 @@ extern crate self as pneuma;
 
 use std::{arch::asm, hint::black_box, rc::Rc, time::UNIX_EPOCH};
 
-use pneuma::task::{RcContext, Task};
+use pneuma::task::{Task, Thread};
 
 // mod runtime;
-pub mod runtime;
+mod runtime;
 mod sys;
 pub mod task;
+
+pub use task::globals::{current, os_thread, try_green_thread, GREEN_THREAD};
+
+use pneuma::task::{spawn, Builder};
 
 #[test]
 fn smoke_test() {
     println!("started");
-    let task = Task::new(1 << 14, || {
-        println!("while inside");
 
-        println!("exiting")
-    })
+    let cx = pneuma::current();
+
+    let handle = Task::new(
+        || {
+            println!("while inside");
+
+            println!("exiting");
+        },
+        Builder::for_os_thread(),
+    )
     .unwrap();
+    println!("foo");
 
-    let cx = RcContext::for_os_thread();
-    task.clone().switch(cx.clone());
+    // cx.switch(handle.0);
+    handle.switch(Thread::for_os_thread());
 
     println!("finished");
 }

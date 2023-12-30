@@ -1,5 +1,5 @@
 use super::Context;
-use super::RcContext;
+use super::Thread;
 use std::cell::Cell;
 use std::ptr::null_mut;
 
@@ -7,13 +7,14 @@ use std::{mem::forget, ptr::NonNull};
 
 thread_local! {
     /// A fast thread local for quickly accessing the current green thread context.
-    static GREEN_THREAD: Cell<*mut Context> = const { Cell::new(null_mut()) };
+    pub static GREEN_THREAD: Cell<*mut Context> = const { Cell::new(null_mut()) };
     /// A slower thread local for accessing the os thread context. It cannot be stored
-    static KERNEL_THREAD: RcContext = RcContext::for_os_thread();
+    static KERNEL_THREAD: Thread = Thread::for_os_thread();
 
 }
 
-/// Gets a handle to the green thread that invokes it.
+/// Gets a handle to the thread that invokes it. The thread may be either a
+/// green thread or an os thread.
 ///
 /// # Examples
 ///
@@ -32,16 +33,17 @@ thread_local! {
 ///
 /// handler.join().unwrap();
 /// ```
-fn current() -> RcContext {
-    if let Some(thread) = _try_green_thread() {
-        return thread;
-    }
+pub fn current() -> Thread {
+    try_green_thread().unwrap_or_else(os_thread)
+}
+
+pub fn os_thread() -> Thread {
     KERNEL_THREAD.with(|cx| cx.clone())
 }
 
-fn _try_green_thread() -> Option<RcContext> {
+pub fn try_green_thread() -> Option<Thread> {
     let ptr = GREEN_THREAD.get();
-    let cx = RcContext(NonNull::new(ptr)?);
+    let cx = Thread(NonNull::new(ptr)?);
     // account for the THREAD reference
     forget(cx.clone());
     Some(cx)

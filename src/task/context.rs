@@ -1,5 +1,8 @@
-use pneuma::task::RcContext;
+use pneuma::task::Thread;
 
+use crate::runtime::Runtime;
+
+use super::builder::Builder;
 use super::{registers::Registers, stack::Stack};
 use std::alloc::alloc;
 use std::alloc::Layout;
@@ -22,6 +25,8 @@ pub(crate) struct Context {
     pub stack: Stack,
     pub layout: Layout,
     pub status: Cell<Status>,
+    pub runtime: Runtime,
+    pub name: Option<String>,
     pub refcount: Cell<u64>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
@@ -40,7 +45,7 @@ pub enum Status {
 }
 
 impl Context {
-    pub fn new<T, F>(size: usize, fun: F) -> io::Result<RcContext>
+    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<Thread>
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -61,7 +66,9 @@ impl Context {
 
             let cx = Context {
                 registers: zeroed(),
-                stack: Stack::new(size)?,
+                stack: Stack::new(builder.stack_size)?,
+                name: builder.name.take(),
+                runtime: builder.runtime(),
                 refcount: 1.into(),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 status: Status::New.into(),
@@ -69,13 +76,13 @@ impl Context {
                 out,
             };
             ptr.cast::<Context>().write(cx);
-            let cx = RcContext(NonNull::new(ptr.cast()).unwrap());
+            let cx = Thread(NonNull::new(ptr.cast()).unwrap());
             Ok(cx.setup_registers())
         }
     }
 
-    pub fn for_os_thread() -> RcContext {
-        let mut cx = Self::new::<(), _>(0, |_| ()).unwrap();
+    pub fn for_os_thread() -> Thread {
+        let mut cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
         cx.status.set(Status::OsThread);
         cx
     }

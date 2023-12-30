@@ -4,11 +4,10 @@ use std::{net::Shutdown, rc::Rc};
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
 
-use pneuma::task::RcContext;
+use pneuma::task::Thread;
 
 // mod config;
 mod executor;
-mod globals;
 
 #[derive(Clone)]
 pub(crate) struct Runtime(Rc<InnerRuntime>);
@@ -16,12 +15,12 @@ pub(crate) struct Runtime(Rc<InnerRuntime>);
 pub(crate) struct InnerRuntime {
     shutdown: Cell<bool>,
     polls: Cell<usize>,
-    executor: Executor,
+    pub executor: Executor,
     // reactor: Reactor,
 }
 
 impl Runtime {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let executor = Executor::new();
         let shutdown = Cell::new(false);
         let polls = Cell::new(0);
@@ -31,8 +30,9 @@ impl Runtime {
             polls,
         }))
     }
+
     // /// Switches to the next
-    // pub fn switch(&self) -> RcContext {
+    // pub fn switch(&self) -> Thread {
     //     let polls = (self.polls.get() + 1) % 61;
     //     self.polls.set(polls);
     //     let option = self.executor.run_queue.borrow_mut().pop_front();
@@ -65,4 +65,8 @@ impl std::ops::Deref for Runtime {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+pub fn current() -> Runtime {
+    pneuma::task::current().runtime.clone()
 }

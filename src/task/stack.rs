@@ -17,9 +17,8 @@ pub(crate) struct Stack {
 
 impl Stack {
     pub fn bottom(&self) -> u64 {
-        let out = (self.data as u64) + self.size as u64;
+        let out = (self.data as u64) + self.size as u64 / 2;
         assert_eq!(out % 16, 0);
-        println!("asd");
         out
     }
 
@@ -51,6 +50,7 @@ impl Stack {
         if data as i64 == -1 {
             return Err(io::Error::last_os_error());
         }
+        let data = unsafe { alloc(Layout::array::<u8>(size).unwrap()).cast() };
         Ok(Stack { data, size })
     }
 }
@@ -61,6 +61,9 @@ impl Drop for Stack {
             // unsafe {
             //     std::alloc::dealloc(self.data.cast(), Layout::array::<u8>(self.size).unwrap())
             // }
+            unsafe {
+                std::arch::asm!("udf #0");
+            }
             unsafe { libc::munmap(self.data, self.size) };
         }
     }
