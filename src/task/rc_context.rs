@@ -1,8 +1,11 @@
 use std::{
+    any::Any,
     arch::asm,
     backtrace::{self, Backtrace},
     cell::{Cell, UnsafeCell},
+    io,
     ops::Deref,
+    panic::{catch_unwind, AssertUnwindSafe},
     ptr::NonNull,
 };
 
@@ -18,12 +21,23 @@ use std::alloc::dealloc;
 pub(crate) struct RcContext(pub(crate) NonNull<Context>);
 
 impl RcContext {
-    pub fn new<T, F>(size: usize, fun: F) -> Self
+    pub fn new<T, F>(size: usize, f: F) -> io::Result<RcContext>
     where
-        F: FnMut(*mut ()) + 'static,
+        F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        Context::new::<T, F>(size, fun)
+        // The purpose of this closure is to convert the FnOnce into an FnMut
+        // And to type errase the closure.
+        let mut f = Some(f);
+        let fun = move |out: *mut ()| {
+            let closure = f.take().unwrap();
+            let res = catch_unwind(AssertUnwindSafe(closure));
+            unsafe {
+                out.cast::<Result<T, Box<dyn Any + Send + 'static>>>()
+                    .write(res)
+            }
+        };
+        Context::new::<T, _>(size, fun)
     }
     /// # Safety
     /// The access must be unique. There cannot be any
@@ -38,13 +52,10 @@ impl RcContext {
     }
 
     pub fn setup_registers(self) -> Self {
-        // println!("{:x}, {:p}", self.stack.bottom(), self.stack.data);
-
-        // self.stack.bottom()
-        let cx = unsafe { self.context() };
-        cx.registers.sp = cx.stack.bottom();
-        cx.registers.arg = cx as *mut _ as u64;
-        cx.registers.fun = Self::call_function as u64;
+        let registers = unsafe { &mut *self.registers.get() };
+        registers.sp = self.stack.bottom();
+        registers.arg = self.0.as_ptr() as u64;
+        registers.fun = Self::call_function as u64;
         self
     }
 
@@ -91,7 +102,10 @@ impl Drop for RcContext {
         // SAFETY: The reference doesn't escape the scope:
         unsafe {
             match self.status.get() {
-                Status::Running => (),
+                Status::OsThread => (),
+                Status::Running => {
+                    todo!("we should switch to the running thread so it can finish")
+                }
                 Status::Taken => (),
                 Status::New => self.fun.drop_in_place(),
                 Status::Finished => self.out.drop_in_place(),

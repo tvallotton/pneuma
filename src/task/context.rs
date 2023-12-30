@@ -5,6 +5,8 @@ use std::alloc::alloc;
 use std::alloc::Layout;
 use std::any::Any;
 use std::cell::Cell;
+use std::cell::UnsafeCell;
+use std::io;
 use std::mem::zeroed;
 use std::ptr::NonNull;
 
@@ -16,7 +18,7 @@ use std::ptr::NonNull;
 
 #[repr(C)]
 pub(crate) struct Context {
-    pub registers: Registers,
+    pub registers: UnsafeCell<Registers>,
     pub stack: Stack,
     pub layout: Layout,
     pub status: Cell<Status>,
@@ -30,14 +32,15 @@ pub(crate) struct Context {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(C)]
 pub enum Status {
-    New = 4,
+    New = 0,
     Running = 1,
     Finished = 2,
     Taken = 3,
+    OsThread = 4,
 }
 
 impl Context {
-    pub fn new<T, F>(size: usize, fun: F) -> RcContext
+    pub fn new<T, F>(size: usize, fun: F) -> io::Result<RcContext>
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -58,7 +61,7 @@ impl Context {
 
             let cx = Context {
                 registers: zeroed(),
-                stack: Stack::new(size),
+                stack: Stack::new(size)?,
                 refcount: 1.into(),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 status: Status::New.into(),
@@ -67,13 +70,13 @@ impl Context {
             };
             ptr.cast::<Context>().write(cx);
             let cx = RcContext(NonNull::new(ptr.cast()).unwrap());
-            cx.setup_registers()
+            Ok(cx.setup_registers())
         }
     }
 
     pub fn for_os_thread() -> RcContext {
-        let mut cx = Self::new::<(), _>(0, |_| ());
-        cx.status.set(Status::Running);
+        let mut cx = Self::new::<(), _>(0, |_| ()).unwrap();
+        cx.status.set(Status::OsThread);
         cx
     }
 }
