@@ -41,12 +41,15 @@ pub fn park() {
         if this.id() == next.id() {
             return this.0.runtime.poll_reactor();
         }
+        
         return next.0.switch(this.0);
     }
     this.0.runtime.poll_reactor()
+    
 }
 
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct Thread(pub(crate) RcContext);
 
 /// A unique identifier for a running thread.
@@ -89,25 +92,5 @@ impl Thread {
 
     pub fn id(&self) -> ThreadId {
         ThreadId(self.0 .0.as_ptr() as usize)
-    }
-}
-
-// Tasks underneath are basically reference counted contexts
-// note that unlike
-#[derive(Clone)]
-pub(crate) struct Task<T>(pub RcContext, PhantomData<T>);
-
-impl<T> Task<T> {
-    pub fn new<F>(f: F, builder: Builder) -> io::Result<Task<T>>
-    where
-        F: FnOnce() -> T + 'static,
-        T: 'static,
-    {
-        let cx = RcContext::new::<T, _>(f, builder)?;
-        Ok(Task(cx, PhantomData))
-    }
-
-    pub fn switch(self, link: RcContext) {
-        self.0.switch(link);
     }
 }

@@ -69,9 +69,6 @@ impl RcContext {
 
     pub fn switch(self, link: RcContext) {
         unsafe { sys::switch_context(link.0, self) }
-        unsafe {
-            std::arch::asm!("RcContext #0");
-        }
     }
 }
 

@@ -74,6 +74,7 @@ impl RcContext {
     ///    to ensure consistency.
 
     pub fn switch(self, link: RcContext) {
+        super::globals::replace(self.clone());
         unsafe { sys::switch_context(link.0, self) }
     }
 }
@@ -93,7 +94,7 @@ impl Drop for RcContext {
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
         let layout = self.layout;
-
+        dbg!(count);
         if count != 0 {
             return;
         }

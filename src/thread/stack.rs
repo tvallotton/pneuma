@@ -49,7 +49,6 @@ impl Stack {
         if data as i64 == -1 {
             return Err(io::Error::last_os_error());
         }
-        let data = unsafe { alloc(Layout::array::<u8>(size).unwrap()).cast() };
         Ok(Stack { data, size })
     }
 }
@@ -57,11 +56,7 @@ impl Stack {
 impl Drop for Stack {
     fn drop(&mut self) {
         if !self.data.is_null() {
-            // unsafe {
-            //     std::alloc::dealloc(self.data.cast(), Layout::array::<u8>(self.size).unwrap())
-            // }
-            dbg!();
-            unsafe { libc::munmap(self.data, self.size) };
+            let x = unsafe { libc::munmap(self.data, self.size) };
         }
     }
 }

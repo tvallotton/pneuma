@@ -7,11 +7,7 @@ use std::ptr::null_mut;
 use std::{mem::forget, ptr::NonNull};
 
 thread_local! {
-    /// A fast thread local for quickly accessing the current green thread context.
-    static GREEN_THREAD: Cell<*mut Context> = const { Cell::new(null_mut()) };
-    /// A slower thread local for accessing the os thread context. It cannot be stored
-    static KERNEL_THREAD: RcContext = RcContext::for_os_thread();
-
+    static THREAD: Cell<Option<RcContext>> = Cell::new(Some(RcContext::for_os_thread()));
 }
 
 /// Gets a handle to the thread that invokes it. The thread may be either a
@@ -35,17 +31,16 @@ thread_local! {
 /// handler.join().unwrap();
 /// ```
 pub fn current() -> Thread {
-    try_green_thread().unwrap_or_else(os_thread)
+    THREAD.with(|cell| {
+        let cx = unsafe { cell.take().unwrap_unchecked() };
+        let out = cx.clone();
+        cell.set(Some(cx));
+        Thread(out)
+    })
 }
 
-pub(crate) fn os_thread() -> Thread {
-    KERNEL_THREAD.with(|cx| Thread(cx.clone()))
-}
-
-pub(crate) fn try_green_thread() -> Option<Thread> {
-    let ptr = GREEN_THREAD.get();
-    let cx = RcContext(NonNull::new(ptr)?);
-    // account for the THREAD reference
-    forget(cx.clone());
-    Some(Thread(cx))
+pub(crate) fn replace(cx: RcContext) {
+    THREAD.with(|cell| {
+        cell.set(Some(cx));
+    })
 }
