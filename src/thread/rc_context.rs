@@ -8,9 +8,11 @@ use std::{
 
 use pneuma::sys;
 
+use crate::thread::Thread;
+
 use super::{
     builder::Builder,
-    context::{Context, Status},
+    context::{Context, Lifecycle},
 };
 use std::alloc::dealloc;
 
@@ -53,13 +55,12 @@ impl RcContext {
     }
 
     pub extern "C" fn call_function(link: RcContext, current: RcContext) {
-        
         {
-            assert_eq!(current.status.get(), Status::New);
+            assert_eq!(current.lifecycle.get(), Lifecycle::New);
             let f = unsafe { current.fun.as_mut().unwrap() };
-            current.status.set(Status::Running);
+            current.lifecycle.set(Lifecycle::Running);
             f(current.out.cast());
-            current.status.set(Status::Finished);
+            current.lifecycle.set(Lifecycle::Finished);
             drop(current);
         }
         link.switch_no_save();
@@ -67,10 +68,13 @@ impl RcContext {
     pub fn switch_no_save(self) {
         unsafe { sys::switch_no_save(self) }
     }
+    /// # Safety
+    /// 1. The two contexts must belong to two different threads.
+    /// 2. Only one Thread instance can exist for a kernel thread
+    ///    to ensure consistency.
 
     pub fn switch(self, link: RcContext) {
         unsafe { sys::switch_context(link.0, self) }
-      
     }
 }
 
@@ -94,14 +98,14 @@ impl Drop for RcContext {
             return;
         }
 
-        match self.status.get() {
-            Status::OsRcContext => (),
-            Status::Running => return self.runtime.executor.push(self.clone()),
-            Status::Taken => (),
-            Status::New => unsafe { self.fun.drop_in_place() },
-            Status::Finished => unsafe { self.out.drop_in_place() },
+        match self.lifecycle.get() {
+            Lifecycle::OsThread => (),
+            Lifecycle::Running => Thread(self.clone()).unpark(),
+            Lifecycle::Taken => (),
+            Lifecycle::New => unsafe { self.fun.drop_in_place() },
+            Lifecycle::Finished => unsafe { self.out.drop_in_place() },
         }
-
+        dbg!();
         unsafe {
             self.0.as_ptr().drop_in_place();
             dealloc(self.0.as_ptr().cast(), layout);

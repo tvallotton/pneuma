@@ -102,7 +102,7 @@ impl Drop for RcContext {
             Status::New => unsafe { self.fun.drop_in_place() },
             Status::Finished => unsafe { self.out.drop_in_place() },
         }
-
+        dbg!();
         unsafe {
             self.0.as_ptr().drop_in_place();
             dealloc(self.0.as_ptr().cast(), layout);

@@ -3,8 +3,6 @@ use std::{alloc::Layout, mem::zeroed, os::raw::c_void, ptr::null_mut};
 
 use std::alloc::alloc;
 
-use libc::PACKET_ADD_MEMBERSHIP;
-
 thread_local! {
     static PAGE_SIZE: usize = unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) as usize};
 }
@@ -28,11 +26,11 @@ impl Stack {
             return unsafe { zeroed() };
         }
         dbg!();
-        let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE | libc::MAP_GROWSDOWN;
+        let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
 
         #[cfg(target_os = "linux")]
         {
-            flags |= libc::MAP_STACK;
+            flags |= libc::MAP_STACK | libc::MAP_GROWSDOWN;
         }
 
         let page_size = PAGE_SIZE.with(|s| *s);
@@ -62,7 +60,7 @@ impl Drop for Stack {
             // unsafe {
             //     std::alloc::dealloc(self.data.cast(), Layout::array::<u8>(self.size).unwrap())
             // }
-
+            dbg!();
             unsafe { libc::munmap(self.data, self.size) };
         }
     }

@@ -4,7 +4,7 @@ use std::{net::Shutdown, rc::Rc};
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
 
-use pneuma::task::RcContext;
+use pneuma::thread::RcContext;
 
 // mod config;
 mod executor;
@@ -68,5 +68,5 @@ impl std::ops::Deref for Runtime {
 }
 
 pub fn current() -> Runtime {
-    pneuma::task::current().runtime.clone()
+    pneuma::thread::current().0.runtime.clone()
 }

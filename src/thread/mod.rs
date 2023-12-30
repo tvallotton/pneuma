@@ -3,6 +3,7 @@ pub use join_handle::JoinHandle;
 pub(crate) use rc_context::RcContext;
 use std::{
     any::Any,
+    cell::Cell,
     io,
     marker::PhantomData,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -14,6 +15,7 @@ pub mod context;
 pub use globals::current;
 
 pub use self::builder::Builder;
+use self::context::Status;
 pub(crate) mod builder;
 pub(crate) mod globals;
 pub(crate) mod join_handle;
@@ -29,8 +31,23 @@ where
     Builder::new().spawn(f).unwrap()
 }
 
+/// Wait unless or until the current thread is unparked by someone calling [`Thread::unpark``].
+///
+/// A call to park does not guarantee that the thread will remain parked forever, and callers
+/// should be prepared for this possibility.
+pub fn park() {
+    let this = current();
+    if let Some(next) = this.0.runtime.executor.pop() {
+        if this.id() == next.id() {
+            return this.0.runtime.poll_reactor();
+        }
+        return next.0.switch(this.0);
+    }
+    this.0.runtime.poll_reactor()
+}
+
 #[derive(Clone)]
-pub struct Thread(RcContext);
+pub struct Thread(pub(crate) RcContext);
 
 /// A unique identifier for a running thread.
 ///
@@ -58,7 +75,12 @@ pub struct ThreadId(usize);
 
 impl Thread {
     pub fn unpark(&self) {
-        self.0.runtime.executor.push(self.clone().0);
+        let thread = &self.0;
+        if thread.status.get() == Status::Queued {
+            return;
+        }
+        thread.status.set(Status::Queued);
+        thread.runtime.executor.push(self.clone());
     }
 
     pub fn name(&self) -> Option<&str> {

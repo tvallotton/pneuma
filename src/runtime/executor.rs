@@ -1,10 +1,11 @@
-use pneuma::task::RcContext;
-use pneuma::task::{JoinHandle, Stack};
+use pneuma::thread::Thread;
+
+use pneuma::thread::{JoinHandle, Stack};
 use std::io;
 use std::{cell::RefCell, collections::VecDeque};
 
 pub(crate) struct Executor {
-    pub run_queue: RefCell<VecDeque<RcContext>>,
+    pub run_queue: RefCell<VecDeque<Thread>>,
     pub unused_stacks: RefCell<Vec<Stack>>,
 }
 
@@ -16,11 +17,11 @@ impl Executor {
         }
     }
 
-    pub fn push(&self, thread: RcContext) {
+    pub fn push(&self, thread: Thread) {
         self.run_queue.borrow_mut().push_back(thread);
     }
 
-    pub fn pop(&self) -> Option<RcContext> {
+    pub fn pop(&self) -> Option<Thread> {
         self.run_queue.borrow_mut().pop_front()
     }
 

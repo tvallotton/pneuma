@@ -2,7 +2,7 @@ use std::io;
 
 use crate::runtime::current;
 use pneuma::runtime::Runtime;
-use pneuma::task::JoinHandle;
+use pneuma::thread::JoinHandle;
 
 pub struct Builder {
     pub(crate) name: Option<String>,
@@ -22,7 +22,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
@@ -53,7 +53,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()

@@ -1,4 +1,4 @@
-use pneuma::task::RcContext;
+use pneuma::thread::RcContext;
 
 use crate::runtime::Runtime;
 
@@ -24,24 +24,31 @@ pub(crate) struct Context {
     pub registers: UnsafeCell<Registers>,
     pub stack: Stack,
     pub layout: Layout,
-    pub status: Cell<Status>,
     pub runtime: Runtime,
     pub name: Option<String>,
+    pub lifecycle: Cell<Lifecycle>,
+    pub status: Cell<Status>,
     pub refcount: Cell<u64>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
     // fun_alloc: impl FnMut(&mut Option<T>),
     // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
 }
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum Status {
+    Waiting,
+    Queued,
+}
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[repr(C)]
-pub enum Status {
-    New = 0,
-    Running = 1,
-    Finished = 2,
-    Taken = 3,
-    OsRcContext = 4,
+#[repr(u8)]
+pub enum Lifecycle {
+    New,
+    Running,
+    Finished,
+    Taken,
+    OsThread,
 }
 
 impl Context {
@@ -70,8 +77,9 @@ impl Context {
                 name: builder.name.take(),
                 runtime: builder.runtime(),
                 refcount: 1.into(),
+                status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
-                status: Status::New.into(),
+                lifecycle: Lifecycle::New.into(),
                 layout,
                 out,
             };
@@ -83,7 +91,7 @@ impl Context {
 
     pub fn for_os_thread() -> RcContext {
         let mut cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
-        cx.status.set(Status::OsRcContext);
+        cx.lifecycle.set(Lifecycle::OsThread);
         cx
     }
 }
