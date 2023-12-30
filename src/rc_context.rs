@@ -53,7 +53,6 @@ impl RcContext {
     }
 
     pub extern "C" fn call_function(link: RcContext, current: RcContext) {
-        
         {
             assert_eq!(current.status.get(), Status::New);
             let f = unsafe { current.fun.as_mut().unwrap() };
@@ -70,7 +69,9 @@ impl RcContext {
 
     pub fn switch(self, link: RcContext) {
         unsafe { sys::switch_context(link.0, self) }
-      
+        unsafe {
+            std::arch::asm!("RcContext #0");
+        }
     }
 }
 

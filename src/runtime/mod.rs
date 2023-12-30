@@ -4,7 +4,7 @@ use std::{net::Shutdown, rc::Rc};
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
 
-use pneuma::task::Thread;
+use pneuma::task::RcContext;
 
 // mod config;
 mod executor;
@@ -32,7 +32,7 @@ impl Runtime {
     }
 
     // /// Switches to the next
-    // pub fn switch(&self) -> Thread {
+    // pub fn switch(&self) -> RcContext {
     //     let polls = (self.polls.get() + 1) % 61;
     //     self.polls.set(polls);
     //     let option = self.executor.run_queue.borrow_mut().pop_front();

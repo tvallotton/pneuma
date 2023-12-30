@@ -1,4 +1,4 @@
-use pneuma::task::Thread;
+use pneuma::task::RcContext;
 
 use crate::runtime::Runtime;
 
@@ -41,11 +41,11 @@ pub enum Status {
     Running = 1,
     Finished = 2,
     Taken = 3,
-    OsThread = 4,
+    OsRcContext = 4,
 }
 
 impl Context {
-    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<Thread>
+    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<RcContext>
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -76,14 +76,14 @@ impl Context {
                 out,
             };
             ptr.cast::<Context>().write(cx);
-            let cx = Thread(NonNull::new(ptr.cast()).unwrap());
+            let cx = RcContext(NonNull::new(ptr.cast()).unwrap());
             Ok(cx.setup_registers())
         }
     }
 
-    pub fn for_os_thread() -> Thread {
+    pub fn for_os_thread() -> RcContext {
         let mut cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
-        cx.status.set(Status::OsThread);
+        cx.status.set(Status::OsRcContext);
         cx
     }
 }

@@ -24,9 +24,10 @@ impl Stack {
 
     pub fn new(mut size: usize) -> io::Result<Stack> {
         if size == 0 {
+            dbg!();
             return unsafe { zeroed() };
         }
-
+        dbg!();
         let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE | libc::MAP_GROWSDOWN;
 
         #[cfg(target_os = "linux")]
@@ -61,9 +62,7 @@ impl Drop for Stack {
             // unsafe {
             //     std::alloc::dealloc(self.data.cast(), Layout::array::<u8>(self.size).unwrap())
             // }
-            unsafe {
-                std::arch::asm!("udf #0");
-            }
+
             unsafe { libc::munmap(self.data, self.size) };
         }
     }

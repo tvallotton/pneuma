@@ -1,3 +1,4 @@
+#![allow(clippy::new_ret_no_self)]
 // use std::{alloc::Layout, mem::zeroed, ptr::null_mut};
 
 // use libc::{mcontext_t, stack_t};
@@ -8,7 +9,7 @@ extern crate self as pneuma;
 
 use std::{arch::asm, hint::black_box, rc::Rc, time::UNIX_EPOCH};
 
-use pneuma::task::{Task, Thread};
+use pneuma::task::{RcContext, Task};
 
 // mod runtime;
 mod runtime;
@@ -31,13 +32,12 @@ fn smoke_test() {
 
             println!("exiting");
         },
-        Builder::for_os_thread(),
+        Builder::new(),
     )
     .unwrap();
-    println!("foo");
 
-    // cx.switch(handle.0);
-    handle.switch(Thread::for_os_thread());
+    println!("foo");
+    handle.switch(cx);
 
     println!("finished");
 }
