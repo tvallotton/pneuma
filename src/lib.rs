@@ -4,10 +4,11 @@
 
 // mod reactor;
 // mod runtime;
+extern crate self as pneuma;
 
 use std::{arch::asm, hint::black_box, rc::Rc, time::UNIX_EPOCH};
 
-use crate::task::{RcContext, Task};
+use pneuma::task::{RcContext, Task};
 
 // mod runtime;
 pub mod runtime;

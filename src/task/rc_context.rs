@@ -9,7 +9,7 @@ use std::{
     ptr::NonNull,
 };
 
-use crate::sys;
+use pneuma::sys;
 
 use super::context::{Context, Status};
 use std::alloc::dealloc;

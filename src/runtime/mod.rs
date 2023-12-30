@@ -1,10 +1,10 @@
 use std::cell::Cell;
 use std::{net::Shutdown, rc::Rc};
-// use crate::reactor::Reactor;
-// use crate::thread::JoinHandle;
+// use pneuma::reactor::Reactor;
+// use pneuma::thread::JoinHandle;
 use executor::Executor;
 
-use crate::task::RcContext;
+use pneuma::task::RcContext;
 
 // mod config;
 mod executor;

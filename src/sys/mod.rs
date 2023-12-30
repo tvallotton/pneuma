@@ -6,7 +6,7 @@
 
 use std::ptr::NonNull;
 
-use crate::task::{Context, RcContext};
+use pneuma::task::{Context, RcContext};
 
 // #[cfg(all(target_family = "aarch64", target_os = "linux"))]
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));

@@ -2,7 +2,7 @@ use std::{
     cell::UnsafeCell, io::Error, marker::PhantomData, mem::zeroed, os::raw::c_void, ptr::null_mut,
 };
 
-use crate::syscall;
+use pneuma::syscall;
 
 mod context;
 mod join_handle;

@@ -1,5 +1,5 @@
-use crate::task::RcContext;
-use crate::task::{JoinHandle, Stack};
+use pneuma::task::RcContext;
+use pneuma::task::{JoinHandle, Stack};
 use std::io;
 use std::{cell::RefCell, collections::VecDeque};
 
