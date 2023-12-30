@@ -31,21 +31,32 @@ where
     Builder::new().spawn(f).unwrap()
 }
 
-/// Wait unless or until the current thread is unparked by someone calling [`Thread::unpark``].
+/// Wait unless or until the current thread is unparked by someone calling [`Thread::unpark`].
 ///
 /// A call to park does not guarantee that the thread will remain parked forever, and callers
 /// should be prepared for this possibility.
+///
+/// Note that is the caller's responsibility to schedule a call to [`Thread::unpark`]. Not doing so
+/// may result in this thread not being scheduled for an indefinite amount of time. Spurious wake ups
+/// cannot be relied on.
+///
+/// See also [`pneuma::thread::yield_now()`] for a function that yields once and reschedules the
+/// thread immediately.
 pub fn park() {
     let this = current();
-    if let Some(next) = this.0.runtime.executor.pop() {
+    while let Some(next) = this.0.runtime.executor.pop() {
         if this.id() == next.id() {
-            return this.0.runtime.poll_reactor();
+            continue;
         }
-        
+
         return next.0.switch(this.0);
     }
     this.0.runtime.poll_reactor()
-    
+}
+
+pub fn yield_now() {
+    current().unpark();
+    park()
 }
 
 #[derive(Clone)]

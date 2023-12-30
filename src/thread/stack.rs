@@ -22,10 +22,9 @@ impl Stack {
 
     pub fn new(mut size: usize) -> io::Result<Stack> {
         if size == 0 {
-            dbg!();
             return unsafe { zeroed() };
         }
-        dbg!();
+
         let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
 
         #[cfg(target_os = "linux")]

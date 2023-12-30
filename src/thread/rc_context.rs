@@ -12,7 +12,7 @@ use crate::thread::Thread;
 
 use super::{
     builder::Builder,
-    context::{Context, Lifecycle},
+    context::{Context, Lifecycle, Status},
 };
 use std::alloc::dealloc;
 
@@ -74,6 +74,7 @@ impl RcContext {
     ///    to ensure consistency.
 
     pub fn switch(self, link: RcContext) {
+        self.status.set(Status::Waiting);
         super::globals::replace(self.clone());
         unsafe { sys::switch_context(link.0, self) }
     }
@@ -94,7 +95,7 @@ impl Drop for RcContext {
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
         let layout = self.layout;
-        dbg!(count);
+
         if count != 0 {
             return;
         }
@@ -106,7 +107,7 @@ impl Drop for RcContext {
             Lifecycle::New => unsafe { self.fun.drop_in_place() },
             Lifecycle::Finished => unsafe { self.out.drop_in_place() },
         }
-        dbg!();
+
         unsafe {
             self.0.as_ptr().drop_in_place();
             dealloc(self.0.as_ptr().cast(), layout);

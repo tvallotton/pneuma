@@ -30,9 +30,11 @@ fn smoke_test() {
         println!("while inside");
 
         println!("exiting");
+        10
     });
-    drop(handle);
-    // pneuma::thread::park();
+
+    dbg!(handle.join());
+    pneuma::thread::park();
 
     println!("finished");
 }
