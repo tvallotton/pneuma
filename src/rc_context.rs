@@ -91,7 +91,7 @@ impl Drop for RcContext {
         if count != 0 {
             return;
         }
-
+        dbg!();
         match self.status.get() {
             Status::OsRcContext => (),
             Status::Running => return self.runtime.executor.push(self.clone()),

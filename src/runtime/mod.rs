@@ -1,13 +1,13 @@
+use pneuma::thread::park;
 use std::cell::Cell;
 use std::{net::Shutdown, rc::Rc};
 // use pneuma::reactor::Reactor;
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
-
-use pneuma::thread::RcContext;
-
+pub use globals::current;
 // mod config;
 mod executor;
+mod globals;
 
 #[derive(Clone)]
 pub(crate) struct Runtime(Rc<InnerRuntime>);
@@ -29,6 +29,14 @@ impl Runtime {
             shutdown,
             polls,
         }))
+    }
+
+    pub(crate) fn shutdown(self) {
+        self.shutdown.set(true);
+
+        while !self.executor.is_empty() {
+            park()
+        }
     }
 
     // /// Switches to the next
@@ -58,6 +66,23 @@ impl Runtime {
         //     self.reactor.poll_and_yield();
         // }
     }
+
+    /// Periodically poll the reactor
+    pub fn poll(&self) {
+        let polls = (self.polls.get() + 1) % 61;
+        self.polls.set(polls);
+        if polls == 0 {
+            self.poll_reactor()
+        }
+    }
+
+    pub fn park(&self) {
+        self.poll();
+        if let Some(next) = self.executor.pop() {
+            return self.executor.switch_to(next);
+        }
+        self.poll_reactor();
+    }
 }
 
 impl std::ops::Deref for Runtime {
@@ -65,8 +90,4 @@ impl std::ops::Deref for Runtime {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-pub fn current() -> Runtime {
-    pneuma::thread::current().0.runtime.clone()
 }

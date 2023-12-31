@@ -14,6 +14,8 @@ pub(crate) use stack::Stack;
 pub mod context;
 pub use globals::current;
 
+use crate::runtime;
+
 pub use self::builder::Builder;
 use self::context::Status;
 pub(crate) mod builder;
@@ -34,26 +36,56 @@ where
 /// Wait unless or until the current thread is unparked by someone calling [`Thread::unpark`].
 ///
 /// A call to park does not guarantee that the thread will remain parked forever, and callers
-/// should be prepared for this possibility.
+/// should be prepared for this possibility. If the thread was unparked while it is still running,
+/// this will cause the thread to be rescheduled. This means that unpark followed by park could result
+/// in the second call returning immediately.
 ///
 /// Note that is the caller's responsibility to schedule a call to [`Thread::unpark`]. Not doing so
 /// may result in this thread not being scheduled for an indefinite amount of time. Spurious wake ups
 /// cannot be relied on.
 ///
-/// See also [`pneuma::thread::yield_now()`] for a function that yields once and reschedules the
+/// See also [`pneuma::thread::yield_now()`] for a function that yields once cooperatively and reschedules the
 /// thread immediately.
 pub fn park() {
-    let this = current();
-    while let Some(next) = this.0.runtime.executor.pop() {
-        if this.id() == next.id() {
-            continue;
-        }
-
-        return next.0.switch(this.0);
-    }
-    this.0.runtime.poll_reactor()
+    runtime::current().park()
 }
 
+/// Cooperatively gives up a timeslice to the pneuma scheduler.
+/// This function is the green thread analog to [`std::thread::yield_now()`].
+///
+/// This will yield so another green thread gets to run, signaling
+/// that the calling thread is willing to give up its remaining timeslice
+/// so that pneuma may schedule other threads on the CPU.
+///
+/// A drawback of yielding in a loop is that if the scheduler does not have any
+/// other ready threads to run, the thread will effectively
+/// busy-wait, which wastes CPU time and energy.
+///
+/// Therefore, when waiting for events of interest, a programmer's first
+/// choice should be to use synchronization devices such as [`channel`]s,
+/// [`Mutex`]es or [`join`] since these primitives are event based,
+/// giving up the CPU until the event of interest has occurred, and signaling
+/// to the scheduler which thread should run next.
+///
+/// Some good use cases for [`yield_now``] are:
+/// 1. Calling it periodically while running a
+/// long CPU bound computation, so the scheduler can respond to events.
+/// 2. Yield after a [`Mutex`] lock is released, to make sure another thread gets to acquire
+/// it next.
+/// Some bad use cases are:
+/// 1. Calling it on a loop until a condition is met.
+/// 2. Implementing a spinlock
+///
+/// # Examples
+///
+/// ```
+/// use pneuma::thread;
+///
+/// thread::yield_now();
+/// ```
+/// [`join`]: Thread::join
+/// [`Mutex`]: std::sync::Mutex
+/// [`channel`]: std::sync::mpsc::channel
 pub fn yield_now() {
     current().unpark();
     park()
@@ -94,14 +126,22 @@ impl Thread {
             return;
         }
         thread.status.set(Status::Queued);
-        thread.runtime.executor.push(self.clone());
+        runtime::current().executor.push(self.clone());
     }
 
     pub fn name(&self) -> Option<&str> {
         self.0.name.as_deref()
     }
 
+    pub(crate) fn status(&self) -> &Cell<Status> {
+        &self.0.status
+    }
+
     pub fn id(&self) -> ThreadId {
         ThreadId(self.0 .0.as_ptr() as usize)
+    }
+
+    pub(crate) fn for_os_thread() -> Thread {
+        Thread(RcContext::for_os_thread())
     }
 }

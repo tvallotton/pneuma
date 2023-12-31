@@ -3,8 +3,7 @@
 
 
 ```rust
-use aion::thread::{spawn, detach}; 
-
+use pneuma::thread::spawn; 
 
 
 fn main() {

@@ -20,21 +20,22 @@ pub use thread::globals::current;
 
 use pneuma::thread::{spawn, Builder};
 
+use crate::thread::yield_now;
+
 #[test]
 fn smoke_test() {
-    println!("started");
-
-    // let cx = pneuma::current();
-
-    let handle = pneuma::spawn(|| {
-        println!("while inside");
-
-        println!("exiting");
-        10
+    let handle = pneuma::thread::spawn(|| {
+        println!("task: init");
+        yield_now();
+        println!("task: middle ");
+        yield_now();
+        println!("task: exiting");
+        122
     });
 
-    dbg!(handle.join());
-    pneuma::thread::park();
-
-    println!("finished");
+    println!("main: spawned");
+    yield_now();
+    println!("main: yielded");
+    assert_eq!(handle.join(), 122);
+    println!("main: finished");
 }

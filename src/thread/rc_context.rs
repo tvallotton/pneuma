@@ -8,11 +8,12 @@ use std::{
 
 use pneuma::sys;
 
-use crate::thread::Thread;
+use crate::thread::{park, Thread};
 
 use super::{
     builder::Builder,
     context::{Context, Lifecycle, Status},
+    yield_now,
 };
 use std::alloc::dealloc;
 
@@ -68,16 +69,6 @@ impl RcContext {
     pub fn switch_no_save(self) {
         unsafe { sys::switch_no_save(self) }
     }
-    /// # Safety
-    /// 1. The two contexts must belong to two different threads.
-    /// 2. Only one Thread instance can exist for a kernel thread
-    ///    to ensure consistency.
-
-    pub fn switch(self, link: RcContext) {
-        self.status.set(Status::Waiting);
-        super::globals::replace(self.clone());
-        unsafe { sys::switch_context(link.0, self) }
-    }
 }
 
 impl Clone for RcContext {
@@ -101,8 +92,18 @@ impl Drop for RcContext {
         }
 
         match self.lifecycle.get() {
-            Lifecycle::OsThread => (),
-            Lifecycle::Running => Thread(self.clone()).unpark(),
+            Lifecycle::OsThread => {
+
+                // while !self.runtime.executor.is_empty() {
+                //     // Safety: This can only be dropped when the thread local is destroyed
+                //     unsafe { Thread(self).park() }
+                // }
+            }
+            Lifecycle::Running => {
+                dbg!("running");
+                Thread(self.clone()).unpark();
+                park();
+            }
             Lifecycle::Taken => (),
             Lifecycle::New => unsafe { self.fun.drop_in_place() },
             Lifecycle::Finished => unsafe { self.out.drop_in_place() },

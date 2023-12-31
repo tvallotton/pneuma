@@ -4,7 +4,7 @@
 // #[cfg(target_arch = "aarch64")]
 // mod aarch64;
 
-use std::ptr::NonNull;
+use pneuma::thread::Thread;
 
 use pneuma::thread::{Context, RcContext};
 
@@ -12,6 +12,6 @@ use pneuma::thread::{Context, RcContext};
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));
 
 extern "C" {
-    pub(crate) fn switch_context(store: NonNull<Context>, next: RcContext);
+    pub(crate) fn switch_context(store: Thread, next: Thread);
     pub(crate) fn switch_no_save(next: RcContext);
 }

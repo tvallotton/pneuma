@@ -6,7 +6,6 @@ use pneuma::thread::JoinHandle;
 
 pub struct Builder {
     pub(crate) name: Option<String>,
-    pub(crate) runtime: Option<Runtime>,
     pub(crate) stack_size: usize,
 }
 
@@ -38,7 +37,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             name: None,
-            runtime: None,
+
             stack_size: 1 << 14,
         }
     }
@@ -88,17 +87,6 @@ impl Builder {
         Self { stack_size, ..self }
     }
 
-    pub(crate) fn set_runtme(self, rt: Runtime) -> Self {
-        Self {
-            runtime: Some(rt),
-            ..self
-        }
-    }
-
-    pub(crate) fn runtime(self) -> Runtime {
-        self.runtime.unwrap_or_else(current)
-    }
-
     pub fn spawn<T, F>(self, f: F) -> io::Result<JoinHandle<T>>
     where
         F: FnOnce() -> T + 'static,
@@ -110,7 +98,7 @@ impl Builder {
     pub(crate) fn for_os_thread() -> Self {
         Builder {
             name: std::thread::current().name().map(Into::into),
-            runtime: Some(Runtime::new()),
+
             stack_size: 0,
         }
     }

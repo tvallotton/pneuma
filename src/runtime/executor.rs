@@ -1,10 +1,16 @@
 use pneuma::thread::Thread;
 
 use pneuma::thread::{JoinHandle, Stack};
+use std::cell::{Cell, UnsafeCell};
 use std::io;
 use std::{cell::RefCell, collections::VecDeque};
 
+use crate::sys;
+use crate::thread::context::Status;
+use crate::thread::RcContext;
+
 pub(crate) struct Executor {
+    pub current: UnsafeCell<Thread>,
     pub run_queue: RefCell<VecDeque<Thread>>,
     pub unused_stacks: RefCell<Vec<Stack>>,
 }
@@ -12,8 +18,33 @@ pub(crate) struct Executor {
 impl Executor {
     pub fn new() -> Executor {
         Executor {
+            current: UnsafeCell::new(Thread::for_os_thread()),
             run_queue: RefCell::default(),
             unused_stacks: RefCell::default(),
+        }
+    }
+
+    pub fn current(&self) -> Thread {
+        unsafe { &*self.current.get() }.clone()
+    }
+
+    /// Replaces the current thread with a new coroutine.
+    #[inline]
+    fn replace(&self, new: Thread) -> Thread {
+        unsafe {
+            let old = &*self.current.get();
+            let old = old.clone();
+            *self.current.get() = new;
+            old
+        }
+    }
+    #[inline]
+    pub fn switch_to(&self, new: Thread) {
+        let id = new.id();
+        let old = self.replace(new.clone());
+        if id != old.id() {
+            new.status().set(Status::Waiting);
+            unsafe { sys::switch_context(old, new) }
         }
     }
 
