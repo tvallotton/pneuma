@@ -6,7 +6,7 @@
 
 use pneuma::thread::Thread;
 
-use pneuma::thread::{Context, RcContext};
+use pneuma::thread::{RcContext};
 
 // #[cfg(all(target_family = "aarch64", target_os = "linux"))]
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));

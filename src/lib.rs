@@ -7,9 +7,9 @@
 // mod runtime;
 extern crate self as pneuma;
 
-use std::{arch::asm, hint::black_box, rc::Rc, time::UNIX_EPOCH};
 
-use pneuma::thread::RcContext;
+
+
 
 // mod runtime;
 mod runtime;
@@ -18,9 +18,9 @@ pub mod thread;
 
 pub use thread::globals::current;
 
-use pneuma::thread::{spawn, Builder};
 
-use crate::thread::yield_now;
+
+
 
 #[test]
 fn smoke_test() {

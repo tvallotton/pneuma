@@ -1,6 +1,6 @@
 use pneuma::thread::RcContext;
 
-use crate::runtime::Runtime;
+
 
 use super::builder::Builder;
 use super::{registers::Registers, stack::Stack};
@@ -88,7 +88,7 @@ impl Context {
     }
 
     pub fn for_os_thread() -> RcContext {
-        let mut cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
+        let cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
         cx.lifecycle.set(Lifecycle::OsThread);
         cx
     }

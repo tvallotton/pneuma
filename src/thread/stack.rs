@@ -1,7 +1,7 @@
 use std::io;
-use std::{alloc::Layout, mem::zeroed, os::raw::c_void, ptr::null_mut};
+use std::{mem::zeroed, os::raw::c_void, ptr::null_mut};
 
-use std::alloc::alloc;
+
 
 thread_local! {
     static PAGE_SIZE: usize = unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) as usize};
@@ -25,7 +25,7 @@ impl Stack {
             return unsafe { zeroed() };
         }
 
-        let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
+        let flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
 
         #[cfg(target_os = "linux")]
         {
@@ -55,7 +55,7 @@ impl Stack {
 impl Drop for Stack {
     fn drop(&mut self) {
         if !self.data.is_null() {
-            let x = unsafe { libc::munmap(self.data, self.size) };
+            let _x = unsafe { libc::munmap(self.data, self.size) };
         }
     }
 }

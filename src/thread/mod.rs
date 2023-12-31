@@ -4,9 +4,6 @@ pub(crate) use rc_context::RcContext;
 use std::{
     any::Any,
     cell::Cell,
-    io,
-    marker::PhantomData,
-    panic::{catch_unwind, AssertUnwindSafe},
 };
 
 pub(crate) use stack::Stack;

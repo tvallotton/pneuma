@@ -1,13 +1,13 @@
 use pneuma::thread::Thread;
 
-use pneuma::thread::{JoinHandle, Stack};
-use std::cell::{Cell, UnsafeCell};
-use std::io;
+use pneuma::thread::{Stack};
+use std::cell::{UnsafeCell};
+
 use std::{cell::RefCell, collections::VecDeque};
 
 use crate::sys;
 use crate::thread::context::Status;
-use crate::thread::RcContext;
+
 
 pub(crate) struct Executor {
     pub current: UnsafeCell<Thread>,

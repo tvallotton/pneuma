@@ -12,8 +12,7 @@ use crate::thread::{park, Thread};
 
 use super::{
     builder::Builder,
-    context::{Context, Lifecycle, Status},
-    yield_now,
+    context::{Context, Lifecycle},
 };
 use std::alloc::dealloc;
 
