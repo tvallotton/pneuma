@@ -1,7 +1,5 @@
 use std::io;
 
-
-
 use pneuma::thread::JoinHandle;
 
 pub struct Builder {
@@ -73,7 +71,7 @@ impl Builder {
 
     /// Sets the size of the stack (in bytes) for the new thread.
     ///
-    /// The actual stack size is silently floored to the platforms
+    /// The actual stack size may be silently raised to the platforms
     /// minimum stack size.
     ///
     /// # Examples

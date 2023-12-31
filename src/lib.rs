@@ -7,10 +7,6 @@
 // mod runtime;
 extern crate self as pneuma;
 
-
-
-
-
 // mod runtime;
 mod runtime;
 mod sys;
@@ -18,23 +14,19 @@ pub mod thread;
 
 pub use thread::globals::current;
 
-
-
-
-
 #[test]
 fn smoke_test() {
     let handle = pneuma::thread::spawn(|| {
         println!("task: init");
-        yield_now();
+        pneuma::thread::yield_now();
         println!("task: middle ");
-        yield_now();
+        pneuma::thread::yield_now();
         println!("task: exiting");
         122
     });
 
     println!("main: spawned");
-    yield_now();
+    pneuma::thread::yield_now();
     println!("main: yielded");
     assert_eq!(handle.join(), 122);
     println!("main: finished");
