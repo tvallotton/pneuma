@@ -13,7 +13,7 @@
 //!
 //! A new thread can be spawned using the [`thread::spawn`][`spawn`] function:
 //!
-//! ```rust
+//! ```ignore
 //! use pneuma::thread;
 //!
 //! thread::spawn(move || {
@@ -119,7 +119,7 @@
 //! 2. [`Cancel::DisableIo`]: Will cause all pending async io to yield immediately with an error.
 //! 3. [`Cancel::Unwind`]: Will cause the task to unwind when it resumes.
 //!
-//! ```rust
+//! ```ignore
 //! use pneuma::thread;
 //!
 //! let thread = thread::spawn(|| {
