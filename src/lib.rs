@@ -8,7 +8,9 @@
 extern crate self as pneuma;
 
 // mod runtime;
+
 mod runtime;
+pub mod sync;
 mod sys;
 pub mod thread;
 
