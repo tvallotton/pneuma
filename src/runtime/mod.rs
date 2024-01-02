@@ -1,6 +1,6 @@
 use pneuma::thread::park;
 use std::cell::Cell;
-use std::{rc::Rc};
+use std::rc::Rc;
 // use pneuma::reactor::Reactor;
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
@@ -89,5 +89,11 @@ impl std::ops::Deref for Runtime {
     type Target = InnerRuntime;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        dbg!(&Rc::strong_count(&self.0));
     }
 }

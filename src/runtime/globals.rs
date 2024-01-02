@@ -25,7 +25,8 @@ struct OnDrop;
 impl Drop for OnDrop {
     fn drop(&mut self) {
         RUNTIME.with(|rt| unsafe {
-            rt.get().read().shutdown();
+            current().shutdown();
+            rt.get().drop_in_place();
         });
     }
 }

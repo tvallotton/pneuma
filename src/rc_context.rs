@@ -10,7 +10,7 @@ use pneuma::sys;
 
 use super::{
     builder::Builder,
-    context::{Context, Status},
+    context::{Context, Lifecycle, Status},
 };
 use std::alloc::dealloc;
 
@@ -59,6 +59,8 @@ impl RcContext {
             current.status.set(Status::Running);
             f(current.out.cast());
             current.status.set(Status::Finished);
+
+            dbg!(current.refcount.get());
             drop(current);
         }
         link.switch_no_save();
@@ -84,6 +86,7 @@ impl Clone for RcContext {
 impl Drop for RcContext {
     #[track_caller]
     fn drop(&mut self) {
+        dbg!();
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
         let layout = self.layout;
@@ -92,12 +95,15 @@ impl Drop for RcContext {
             return;
         }
         dbg!();
-        match self.status.get() {
-            Status::OsRcContext => (),
-            Status::Running => return self.runtime.executor.push(self.clone()),
-            Status::Taken => (),
-            Status::New => unsafe { self.fun.drop_in_place() },
-            Status::Finished => unsafe { self.out.drop_in_place() },
+        match self.lifecycle.get() {
+            Lifecycle::OsThread => (),
+            Lifecycle::Running => {
+                dbg!();
+                return self.runtime.executor.push(self.clone());
+            }
+            Lifecycle::Taken => (),
+            Lifecycle::New => unsafe { self.fun.drop_in_place() },
+            Lifecycle::Finished => unsafe { self.out.drop_in_place() },
         }
         dbg!();
         unsafe {

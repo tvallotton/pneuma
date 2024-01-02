@@ -161,7 +161,7 @@ pub use globals::current;
 use crate::runtime;
 
 pub use self::builder::Builder;
-use self::context::Status;
+use self::context::{Lifecycle, Status};
 pub(crate) mod builder;
 pub(crate) mod globals;
 pub(crate) mod join_handle;
@@ -305,6 +305,9 @@ impl Thread {
     pub fn unpark(&self) {
         let thread = &self.0;
         if thread.status.get() == Status::Queued {
+            return;
+        }
+        if let Lifecycle::Finished | Lifecycle::Taken = thread.lifecycle.get() {
             return;
         }
         thread.status.set(Status::Queued);

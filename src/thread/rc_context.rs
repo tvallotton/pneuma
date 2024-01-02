@@ -72,32 +72,26 @@ impl RcContext {
 
 impl Clone for RcContext {
     fn clone(&self) -> Self {
-        // SAFETY: The reference doesn't escape the scope
         let count = self.refcount.get() + 1;
         self.refcount.set(count);
+        dbg!(count, self.lifecycle.get());
         RcContext(self.0)
     }
 }
 
 impl Drop for RcContext {
-    #[track_caller]
+    // #[track_caller]
     fn drop(&mut self) {
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
         let layout = self.layout;
-
+        dbg!(count, self.lifecycle.get());
         if count != 0 {
             return;
         }
 
         match self.lifecycle.get() {
-            Lifecycle::OsThread => {
-
-                // while !self.runtime.executor.is_empty() {
-                //     // Safety: This can only be dropped when the thread local is destroyed
-                //     unsafe { Thread(self).park() }
-                // }
-            }
+            Lifecycle::OsThread => {}
             Lifecycle::Running => {
                 dbg!("running");
                 Thread(self.clone()).unpark();

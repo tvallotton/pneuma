@@ -8,10 +8,10 @@ use pneuma::thread::Thread;
 
 use pneuma::thread::RcContext;
 
-// #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-// std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));
 
-// #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
 std::arch::global_asm!(include_str!("asm/aarch64-macos.s"));
 
 // pub(crate) use _switch_context as switch_context;
