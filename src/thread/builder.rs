@@ -81,7 +81,10 @@ impl Builder {
     /// let builder = thread::Builder::new().stack_size(32 * 1024);
     /// ```
     pub fn stack_size(self, stack_size: usize) -> Self {
-        Self { stack_size, ..self }
+        Self {
+            stack_size: stack_size.max(1),
+            ..self
+        }
     }
 
     pub fn spawn<T, F>(self, f: F) -> io::Result<JoinHandle<T>>
