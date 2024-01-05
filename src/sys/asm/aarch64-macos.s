@@ -1,110 +1,74 @@
-// # Calling convention
-// the following pointers must be preserved: 
-// * x19-x29
-// * z8-z23 ?
-// * v8-v15 ?
-.global    __on_coroutine_exit
-.text
-__on_coroutine_exit: 
-    ret
+.global  _start_coroutine
+.p2align 2
+_start_coroutine:
+    .cfi_undefined x30
+    br x2
     
-// #[repr(C)]
-// pub struct Registers 
-//     pub sp: u64,
-//     pub fun: u64,
-//     pub arg: u64,
-//     pub frame: u64,
-//     pub link: u64,
-//     pub general: [u64; 59],
-// 
-
-.global    _switch_context
-.p2align   4
+.global  _switch_context
+.p2align 2
 _switch_context:
-    
-    // # Store context
-    // store sp and function
-    mov x2, sp
-    
-    adrp x3, __on_coroutine_exit@PAGE
-    add x3, x3, __on_coroutine_exit@PAGEOFF
-    
-    stp x2, x3, [x0, #0]
+    // Store sp
+    mov x3, sp
+    str x3, [x0, #0]
 
-    // We skip the argument pointer since 
-    // the coroutine alreadys started
-    // str x
+    // Store eneral purpose registers
+    stp x30, x29, [x0, #8]
+    stp x28, x27, [x0, #24]
+    stp x26, x25, [x0, #40]
+    stp x24, x23, [x0, #56]
+    stp x22, x21, [x0, #72]
+    stp x20, x19, [x0, #88]
 
-    // store frame pointer and link
-    // General purpose registers
-    stp x29, x30, [x0, #24]
-    stp x27, x28, [x0, #40]
-    stp x25, x26, [x0, #56]
-    stp x23, x24, [x0, #72]
-    stp x21, x22, [x0, #88]
-    stp x19, x20, [x0, #104]
+    // Store d registers
+    stp d8,  d9,  [x0, #104]
+    stp d10, d11, [x0, #120]
+    stp d12, d13, [x0, #136]
+    stp d14, d15, [x0, #152]
+
+    // Load sp 
+    ldr x3, [x1, #0]
+    mov sp, x3
     
+    // Load general purpose registers
+    ldp x29, x30, [x1, #8]
+    ldp x27, x28, [x1, #24]
+    ldp x25, x26, [x1, #40]
+    ldp x23, x24, [x1, #56]
+    ldp x21, x22, [x1, #72]
+    ldp x19, x20, [x1, #88]
 
-    // store d registers
-    stp d8,  d9,  [x0, #120]
-    stp d10, d11, [x0, #136]
-    stp d12, d13, [x0, #152]
-    stp d14, d15, [x0, #168]
-
-    // # Load context
-    // General purpose registers
-    ldp x29, x30, [x1, #24]
-    ldp x27, x28, [x1, #40]
-    ldp x25, x26, [x1, #56]
-    ldp x23, x24, [x1, #72]
-    ldp x21, x22, [x1, #88]
-    ldp x19, x20, [x1, #104]
-
-    // load d registers
-    ldp d8,  d9,  [x1, #120]
-    ldp d10, d11, [x1, #136]
-    ldp d12, d13, [x1, #152]
-    ldp d14, d15, [x1, #168]
+    // Load d registers
+    ldp d8,  d9,  [x1, #104]
+    ldp d10, d11, [x1, #120]
+    ldp d12, d13, [x1, #136]
+    ldp d14, d15, [x1, #152]
     
-    // load sp and function
-    ldp x2, x3, [x1, #0]
-    mov sp, x2
-
-    // check if x29 has been initialized
-    
-    cbz x29, 1f 
-    
-    // initialize LN and FP to return to the parent original coroutine.
-    ldp x29, x30, [x0, #24]
-
-1:
-    br x3
     ret
+    # br x30
+    
+    
 
-.global    _switch_no_save
-.p2align   4
+.global  _switch_no_save
+.p2align 2
 _switch_no_save: 
+    .cfi_startproc
+    // Load sp 
+    ldr x3, [x0, #0]
+    mov sp, x3
     
-    // # Load context
-    // General purpose registers
-    ldp x29, x30, [x0, #24]
-    ldp x27, x28, [x0, #40]
-    ldp x25, x26, [x0, #56]
-    ldp x23, x24, [x0, #72]
-    ldp x21, x22, [x0, #88]
-    ldp x19, x20, [x0, #104]
+    // Load general purpose registers
+    ldp x30, x29, [x0, #8]
+    ldp x28, x27, [x0, #24]
+    ldp x26, x25, [x0, #40]
+    ldp x24, x23, [x0, #56]
+    ldp x22, x21, [x0, #72]
+    ldp x20, x19, [x0, #88]
 
-    // load d registers
-    ldp d8,  d9,  [x0, #120]
-    ldp d10, d11, [x0, #136]
-    ldp d12, d13, [x0, #152]
-    ldp d14, d15, [x0, #168]
+    // Load d registers
+    ldp d8,  d9,  [x0, #104]
+    ldp d10, d11, [x0, #120]
+    ldp d12, d13, [x0, #136]
+    ldp d14, d15, [x0, #152]
     
-    // load sp and function
-    ldp x2, x3, [x0, #0]
-    mov sp, x2
- 
-    // initialize LN and FP to return to the parent original coroutine.
-    ldp x29, x30, [x0, #24]
-
-    br x3
+    br x30
+    .cfi_endproc

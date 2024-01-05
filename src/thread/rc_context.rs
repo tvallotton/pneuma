@@ -48,9 +48,9 @@ impl RcContext {
 
     pub fn setup_registers(self) -> Self {
         let registers = unsafe { &mut *self.registers.get() };
-        registers.sp = self.stack.bottom();
-        registers.arg = self.0.as_ptr() as u64;
-        registers.fun = Self::call_function as u64;
+        registers[0] = self.stack.bottom();
+        registers[1] = sys::start_coroutine as u64;
+        registers[2] = sys::start_coroutine as u64;
         self
     }
 
@@ -60,9 +60,11 @@ impl RcContext {
             let f = unsafe { current.fun.as_mut().unwrap() };
             current.lifecycle.set(Lifecycle::Running);
             f(current.out.cast());
+            dbg!();
             current.lifecycle.set(Lifecycle::Finished);
             drop(current);
         }
+        dbg!();
         link.switch_no_save();
     }
     pub fn switch_no_save(self) {
@@ -74,7 +76,7 @@ impl Clone for RcContext {
     fn clone(&self) -> Self {
         let count = self.refcount.get() + 1;
         self.refcount.set(count);
-        dbg!(count, self.lifecycle.get());
+
         RcContext(self.0)
     }
 }
@@ -85,7 +87,6 @@ impl Drop for RcContext {
         let count = self.refcount.get() - 1;
         self.refcount.set(count);
         let layout = self.layout;
-        dbg!(count, self.lifecycle.get());
         if count != 0 {
             return;
         }

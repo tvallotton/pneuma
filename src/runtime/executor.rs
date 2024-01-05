@@ -1,13 +1,13 @@
 use pneuma::thread::Thread;
 
-use pneuma::thread::{Stack};
-use std::cell::{UnsafeCell};
+use pneuma::thread::Stack;
+use std::cell::UnsafeCell;
 
 use std::{cell::RefCell, collections::VecDeque};
 
 use crate::sys;
 use crate::thread::context::Status;
-
+use crate::thread::RcContext;
 
 pub(crate) struct Executor {
     pub current: UnsafeCell<Thread>,
@@ -44,7 +44,7 @@ impl Executor {
         let old = self.replace(new.clone());
         if id != old.id() {
             new.status().set(Status::Waiting);
-            unsafe { sys::switch_context(old, new) }
+            unsafe { sys::switch_context(old, new, RcContext::call_function) }
         }
     }
 

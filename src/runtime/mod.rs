@@ -93,7 +93,5 @@ impl std::ops::Deref for Runtime {
 }
 
 impl Drop for Runtime {
-    fn drop(&mut self) {
-        dbg!(&Rc::strong_count(&self.0));
-    }
+    fn drop(&mut self) {}
 }
