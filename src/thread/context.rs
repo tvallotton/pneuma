@@ -1,9 +1,8 @@
 use pneuma::thread::RcContext;
 
-
-
 use super::builder::Builder;
 use super::{registers::Registers, stack::Stack};
+use pneuma::thread::Thread;
 use std::alloc::alloc;
 use std::alloc::Layout;
 use std::any::Any;
@@ -28,8 +27,10 @@ pub(crate) struct Context {
     pub lifecycle: Cell<Lifecycle>,
     pub status: Cell<Status>,
     pub refcount: Cell<u64>,
+    pub is_cancelled: Cell<bool>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
+    pub join_waker: Cell<Option<Thread>>,
     // fun_alloc: impl FnMut(&mut Option<T>),
     // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
 }
@@ -78,6 +79,8 @@ impl Context {
                 status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 lifecycle: Lifecycle::New.into(),
+                join_waker: Cell::default(),
+                is_cancelled: Cell::new(false),
                 layout,
                 out,
             };

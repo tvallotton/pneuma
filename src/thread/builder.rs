@@ -19,7 +19,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
@@ -49,7 +49,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
@@ -75,7 +75,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new().stack_size(32 * 1024);

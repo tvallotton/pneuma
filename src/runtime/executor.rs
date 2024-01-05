@@ -42,9 +42,10 @@ impl Executor {
     pub fn switch_to(&self, new: Thread) {
         let id = new.id();
         let old = self.replace(new.clone());
+        std::mem::forget((old.clone(), new.clone()));
         if id != old.id() {
             new.status().set(Status::Waiting);
-            unsafe { sys::switch_context(old, new, RcContext::call_function) }
+            unsafe { sys::switch_context(old.0 .0.as_ptr(), new.0 .0.as_ptr()) }
         }
     }
 

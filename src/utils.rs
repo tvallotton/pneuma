@@ -1,3 +1,7 @@
+pub fn cancel_error() {
+    
+}
+
 #[macro_export]
 macro_rules! syscall {
     ($fun:ident, $($arg:expr),* $(,)?) => {

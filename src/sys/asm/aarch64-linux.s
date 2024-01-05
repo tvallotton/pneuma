@@ -7,15 +7,14 @@ start_coroutine:
     .cfi_startproc
     .cfi_undefined x30
     mov x30, 0
-    br x2    
+    br x19
     .cfi_endproc
 
-    
+
 .global switch_context
 .type   switch_context, @function
 .align  16
 switch_context:
-    
     // Store sp
     mov x3, sp
     str x3, [x0, #0]

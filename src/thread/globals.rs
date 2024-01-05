@@ -1,10 +1,5 @@
-
-
 use super::Thread;
 use pneuma::runtime;
-
-
-
 
 /// Gets a handle to the thread that invokes it. The thread may be either a
 /// green thread or an os thread.
@@ -13,7 +8,7 @@ use pneuma::runtime;
 ///
 /// Getting a handle to the current thread with `thread::current()`:
 ///
-/// ```ignore
+/// ```no_run
 /// use pneuma::thread;
 ///
 /// let handler = thread::Builder::new()

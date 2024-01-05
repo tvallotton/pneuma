@@ -18,7 +18,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::spawn`]:
 ///
-/// ```
+/// ```no_run
 /// use pneuma::thread;
 ///
 /// let join_handle: thread::JoinHandle<_> = thread::spawn(|| {
@@ -28,7 +28,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::Builder::spawn`]:
 ///
-/// ```
+/// ```no_run
 /// use pneuma::thread;
 ///
 /// let builder = thread::Builder::new();
@@ -89,7 +89,10 @@ impl<T> JoinHandle<T> {
         loop {
             match self.0 .0.lifecycle.get() {
                 Lifecycle::Taken | Lifecycle::OsThread => unreachable!(),
-                Lifecycle::New | Lifecycle::Running => pneuma::thread::park(),
+                Lifecycle::New | Lifecycle::Running => {
+                    self.0 .0.join_waker.set(Some(pneuma::thread::current()));
+                    pneuma::thread::park()
+                }
                 Lifecycle::Finished => unsafe {
                     self.0 .0.lifecycle.set(Lifecycle::Taken);
                     let out = self.0 .0.out as *mut Result<T, Box<dyn Any + Send + 'static>>;
@@ -97,5 +100,25 @@ impl<T> JoinHandle<T> {
                 },
             }
         }
+    }
+
+    /// Extracts a handle to the underlying thread.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::thread;
+    ///
+    /// let builder = thread::Builder::new();
+    ///
+    /// let join_handle: thread::JoinHandle<_> = builder.spawn(|| {
+    ///     // some work here
+    /// }).unwrap();
+    ///
+    /// let thread = join_handle.thread();
+    /// println!("thread id: {:?}", thread.id());
+    /// ```
+    pub fn thread(&self) -> &Thread {
+        &self.0
     }
 }

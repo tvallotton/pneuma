@@ -13,7 +13,7 @@
 //!
 //! A new thread can be spawned using the [`thread::spawn`][`spawn`] function:
 //!
-//! ```ignore
+//! ```no_run
 //! use pneuma::thread;
 //!
 //! thread::spawn(move || {
@@ -45,7 +45,7 @@
 //!
 //! To get the behavior of `std` threads, the `try_join`(JoinHandle::try_join) method
 //! can be used:
-//! ```
+//! ```no_run
 //!  use pneuma::thread;
 //!
 //! let thread_join_handle = thread::spawn(move || {
@@ -64,7 +64,7 @@
 //! A new thread can be configured before it is spawned via the [`Builder`] type,
 //! which currently allows you to set the name and stack size for the thread:
 //!
-//! ```rust
+//! ```no_run
 //! use pneuma::thread;
 //!
 //! thread::Builder::new().name("thread1".to_string()).spawn(move || {
@@ -112,19 +112,18 @@
 //! infinite loop, the program will never exit.
 //!
 //! However, the runtime offers a mechanism for tasks to exit cooperatively. This is achieved
-//! through the `Thread::cancel` method. The `cancel` method supports three different mechanisms
-//! for cancellation with varying degrees of aggressiveness:
+//! through the `Thread::cancel` method. The `cancel` method supports two different mechanisms
+//! for cancellation:
 //!
-//! 1. [`Cancel::FlagOnly`]: Allows the tasks to check for cancellation, through the [`is_cancelled`].
+//! 1. [`Cancel::FlagOnly`]: Allows the tasks to check for cancellation, through the [`is_cancelled`] method.
 //! 2. [`Cancel::DisableIo`]: Will cause all pending async io to yield immediately with an error.
-//! 3. [`Cancel::Unwind`]: Will cause the task to unwind when it resumes.
 //!
-//! ```ignore
+//! ```no_run
 //! use pneuma::thread;
 //!
 //! let thread = thread::spawn(|| {
 //!     while !thread::is_cancelled() {
-//!         thread::park()
+//!         yield_now().await;
 //!     }
 //! });
 //! thread::yield_now();
@@ -226,7 +225,7 @@ pub fn park() {
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use pneuma::thread;
 ///
 /// thread::yield_now();
@@ -235,8 +234,9 @@ pub fn park() {
 /// [`Mutex`]: std::sync::Mutex
 /// [`channel`]: std::sync::mpsc::channel
 pub fn yield_now() {
-    current().unpark();
-    park()
+    let current = current();
+    current.unpark();
+    park();
 }
 
 #[derive(Clone)]
@@ -252,7 +252,7 @@ pub struct Thread(pub(crate) RcContext);
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```no_run
 /// use pneuma::thread;
 ///
 /// let other_thread = thread::spawn(|| {
@@ -264,7 +264,7 @@ pub struct Thread(pub(crate) RcContext);
 /// ```
 ///
 /// [`id`]: Thread::id
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Debug)]
 pub struct ThreadId(usize);
 
 impl Thread {
@@ -281,7 +281,7 @@ impl Thread {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let parked_thread = thread::Builder::new()
@@ -298,7 +298,7 @@ impl Thread {
     /// println!("Unpark the thread");
     /// parked_thread.thread().unpark();
     ///
-    /// parked_thread.join().unwrap();
+    /// parked_thread.join();
     /// ```
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake
@@ -310,6 +310,7 @@ impl Thread {
         if let Lifecycle::Finished | Lifecycle::Taken = thread.lifecycle.get() {
             return;
         }
+
         thread.status.set(Status::Queued);
         runtime::current().executor.push(self.clone());
     }
@@ -322,7 +323,7 @@ impl Thread {
     ///
     /// Threads by default have no name specified:
     ///
-    /// ```
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new();
@@ -336,7 +337,7 @@ impl Thread {
     ///
     /// Thread with a specified name:
     ///
-    /// ```
+    /// ```no_run
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()

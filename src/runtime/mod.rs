@@ -1,6 +1,7 @@
 use pneuma::thread::park;
 use std::cell::Cell;
 use std::rc::Rc;
+use std::thread::yield_now;
 // use pneuma::reactor::Reactor;
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
@@ -35,7 +36,7 @@ impl Runtime {
         self.shutdown.set(true);
 
         while !self.executor.is_empty() {
-            park()
+            yield_now();
         }
     }
 
@@ -81,6 +82,7 @@ impl Runtime {
         if let Some(next) = self.executor.pop() {
             return self.executor.switch_to(next);
         }
+
         self.poll_reactor();
     }
 }

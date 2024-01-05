@@ -4,7 +4,7 @@ _start_coroutine:
     .cfi_startproc
     .cfi_undefined x30
     mov x30, #0
-    br x2
+    br x19
     .cfi_endproc
     
 .global  _switch_context

@@ -4,8 +4,7 @@
 // #[cfg(target_arch = "aarch64")]
 // mod aarch64;
 
-use std::slice::RChunks;
-
+use pneuma::thread::Context;
 use pneuma::thread::Thread;
 
 use pneuma::thread::RcContext;
@@ -19,11 +18,6 @@ std::arch::global_asm!(include_str!("asm/aarch64-macos.s"),);
 // pub(crate) use _switch_context as switch_context;
 // pub(crate) use _switch_no_save as switch_no_save;
 extern "C" {
-    pub(crate) fn switch_context(
-        store: Thread,
-        next: Thread,
-        f: extern "C" fn(RcContext, RcContext),
-    );
-    pub(crate) fn switch_no_save(next: RcContext);
+    pub(crate) fn switch_context(store: *mut Context, next: *mut Context);
     pub(crate) fn start_coroutine(store: RcContext, next: RcContext, x: u64);
 }
