@@ -9,6 +9,10 @@
 //! in their own stack. Because they run on top of OS threads, they share
 //! thread local storage.
 //!
+//! Unlike [`may`](https://docs.rs/may/latest/may/), `pneuma` favors a share
+//! nothing architecture over a work stealing one. This means that using thread
+//! local storage is permitted and encouraged when using `pneuma`.
+//!
 //! ## Spawning a thread
 //!
 //! A new thread can be spawned using the [`thread::spawn`][`spawn`] function:
