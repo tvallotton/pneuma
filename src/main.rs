@@ -87,8 +87,12 @@ fn bar() {
     println!("add");
     println!("{}", std::backtrace::Backtrace::force_capture());
 }
+
 fn main() {
-    bar();
+    // assert!(!std::backtrace::Backtrace::force_capture()
+    //     .to_string()
+    //     .is_empty());
+    // bar();
     let handle = pneuma::thread::spawn(|| {
         println!("asd");
         for i in 0..1000 {

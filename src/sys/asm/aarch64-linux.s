@@ -4,8 +4,12 @@
 .align  16
 .size   start_coroutine, 8
 start_coroutine:
+    .cfi_startproc
+    .cfi_undefined x30
     mov x30, 0
     br x2    
+    .cfi_endproc
+
     
 .global switch_context
 .type   switch_context, @function

@@ -1,8 +1,11 @@
 .global  _start_coroutine
 .p2align 2
 _start_coroutine:
+    .cfi_startproc
     .cfi_undefined x30
+    mov x30, #0
     br x2
+    .cfi_endproc
     
 .global  _switch_context
 .p2align 2
@@ -43,8 +46,7 @@ _switch_context:
     ldp d12, d13, [x1, #136]
     ldp d14, d15, [x1, #152]
     
-    ret
-    # br x30
+    br x30
     
     
 

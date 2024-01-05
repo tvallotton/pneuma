@@ -35,8 +35,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             name: None,
-
-            stack_size: 1 << 14,
+            stack_size: 1 << 15,
         }
     }
 
