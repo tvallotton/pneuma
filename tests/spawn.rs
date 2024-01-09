@@ -15,6 +15,7 @@ fn yield_now() {
     let handle = pneuma::thread::spawn(move || {
         counter_assert(&counter_, 2);
         pneuma::thread::yield_now();
+
         counter_assert(&counter_, 4);
         pneuma::thread::yield_now();
         counter_assert(&counter_, 5);
@@ -22,8 +23,10 @@ fn yield_now() {
     });
 
     counter_assert(&counter, 1);
+    pneuma::current().unpark();
     pneuma::thread::yield_now();
     counter_assert(&counter, 3);
+    dbg!();
     assert_eq!(handle.join(), 122);
     counter_assert(&counter, 6);
 }

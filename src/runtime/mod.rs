@@ -1,6 +1,6 @@
 use pneuma::thread::park;
 use std::cell::Cell;
-use std::{rc::Rc};
+use std::rc::Rc;
 // use pneuma::reactor::Reactor;
 // use pneuma::thread::JoinHandle;
 use executor::Executor;

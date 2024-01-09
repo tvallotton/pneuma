@@ -48,14 +48,16 @@ impl RcContext {
 
     pub fn setup_registers(self) -> Self {
         let registers = unsafe { &mut *self.registers.get() };
-        registers.sp = self.stack.bottom();
-        registers.arg = self.0.as_ptr() as u64;
-        registers.fun = Self::call_function as u64;
+        registers[0] = self.stack.bottom();
+        registers[1] = sys::start_coroutine as u64;
+        registers[2] = sys::start_coroutine as u64;
+        registers[11] = Self::call_function as u64;
         self
     }
 
-    pub extern "C" fn call_function(link: RcContext, current: RcContext) {
+    pub extern "C" fn call_function(cx: NonNull<Context>) {
         {
+            let current = Self::from_borrowed(cx);
             assert_eq!(current.lifecycle.get(), Lifecycle::New);
             let f = unsafe { current.fun.as_mut().unwrap() };
             current.lifecycle.set(Lifecycle::Running);
@@ -68,10 +70,14 @@ impl RcContext {
         loop {
             println!("1");
             park();
+            std::thread::sleep(std::time::Duration::from_secs(1));
         }
     }
-    pub fn switch_no_save(self) {
-        unsafe { sys::switch_no_save(self) }
+
+    pub fn from_borrowed(cx: NonNull<Context>) -> Self {
+        let cx = Self(cx);
+        std::mem::forget(cx.clone());
+        cx
     }
 }
 

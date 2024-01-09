@@ -264,7 +264,7 @@ pub struct Thread(pub(crate) RcContext);
 /// ```
 ///
 /// [`id`]: Thread::id
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy, Debug)]
 pub struct ThreadId(usize);
 
 impl Thread {
