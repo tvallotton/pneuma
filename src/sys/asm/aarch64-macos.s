@@ -1,14 +1,13 @@
 .global _start_coroutine
-.text
+.p2align   2
 _start_coroutine:     
     mov x30, #0
     mov x0, x1 
     br x19
-    ret
 
 
 .global    _switch_context
-.p2align   4
+.p2align   2
 _switch_context:
     
     // # Store context
@@ -50,8 +49,6 @@ _switch_context:
     ldp d10, d11, [x1, #120]
     ldp d12, d13, [x1, #136]
     ldp d14, d15, [x1, #152]
-
-    
 
     br x30
     

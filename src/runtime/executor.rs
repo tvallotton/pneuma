@@ -45,7 +45,7 @@ impl Executor {
 
         if id != old.id() {
             new.status().set(Status::Waiting);
-            unsafe { sys::switch_context(old, new) }
+            unsafe { sys::switch_context(old.0 .0, new.0 .0) }
         }
     }
 
