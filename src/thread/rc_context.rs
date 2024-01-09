@@ -61,9 +61,14 @@ impl RcContext {
             current.lifecycle.set(Lifecycle::Running);
             f(current.out.cast());
             current.lifecycle.set(Lifecycle::Finished);
+            current.join_waker.take().as_ref().map(Thread::unpark);
             drop(current);
         }
-        link.switch_no_save();
+
+        loop {
+            println!("1");
+            park();
+        }
     }
     pub fn switch_no_save(self) {
         unsafe { sys::switch_no_save(self) }

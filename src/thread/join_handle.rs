@@ -1,5 +1,7 @@
 use std::{any::Any, io, marker::PhantomData, panic::resume_unwind};
 
+use crate::current;
+
 use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 
 /// An owned permission to join on a green thread (block on its termination).
@@ -89,7 +91,10 @@ impl<T> JoinHandle<T> {
         loop {
             match self.0 .0.lifecycle.get() {
                 Lifecycle::Taken | Lifecycle::OsThread => unreachable!(),
-                Lifecycle::New | Lifecycle::Running => pneuma::thread::park(),
+                Lifecycle::New | Lifecycle::Running => {
+                    self.0 .0.join_waker.set(Some(pneuma::thread::current()));
+                    pneuma::thread::park()
+                }
                 Lifecycle::Finished => unsafe {
                     self.0 .0.lifecycle.set(Lifecycle::Taken);
                     let out = self.0 .0.out as *mut Result<T, Box<dyn Any + Send + 'static>>;

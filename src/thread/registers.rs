@@ -1,5 +1,7 @@
 use std::mem::zeroed;
 
+// pub type Registers = [u64; 19];
+
 #[repr(C)]
 pub struct Registers {
     pub sp: u64,
