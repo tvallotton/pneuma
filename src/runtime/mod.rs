@@ -5,6 +5,9 @@ use std::rc::Rc;
 // use pneuma::thread::JoinHandle;
 use executor::Executor;
 pub use globals::current;
+
+use crate::thread::context::Status;
+use crate::thread::{Builder, JoinHandle};
 // mod config;
 mod executor;
 mod globals;
@@ -76,12 +79,14 @@ impl Runtime {
         }
     }
 
-    pub fn park(&self) {
+ 
+    pub fn park(self) {
         self.poll();
         if let Some(next) = self.executor.pop() {
-            return self.executor.switch_to(next);
+            self.executor.switch_to(next);
+        } else {
+            self.poll_reactor();
         }
-        self.poll_reactor();
     }
 }
 

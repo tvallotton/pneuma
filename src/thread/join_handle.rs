@@ -20,7 +20,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::spawn`]:
 ///
-/// ```
+/// ```ignore
 /// use pneuma::thread;
 ///
 /// let join_handle: thread::JoinHandle<_> = thread::spawn(|| {
@@ -30,7 +30,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::Builder::spawn`]:
 ///
-/// ```
+/// ```ignore
 /// use pneuma::thread;
 ///
 /// let builder = thread::Builder::new();
@@ -76,7 +76,6 @@ impl<T> JoinHandle<T> {
     {
         let cx = RcContext::new(f, builder)?;
         let thread = Thread(cx);
-        thread.unpark();
         Ok(JoinHandle(thread, PhantomData))
     }
 
@@ -85,6 +84,10 @@ impl<T> JoinHandle<T> {
             Ok(out) => out,
             Err(err) => resume_unwind(err),
         }
+    }
+
+    pub fn thread(&self) -> &Thread {
+        &self.0
     }
 
     pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {

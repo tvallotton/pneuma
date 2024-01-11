@@ -4,6 +4,7 @@ use std::{
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},
     ptr::NonNull,
+    thread::current,
 };
 
 use pneuma::sys;
@@ -56,21 +57,35 @@ impl RcContext {
     }
 
     pub extern "C" fn call_function(cx: NonNull<Context>) {
+        let current = Self::from_borrowed(cx);
         {
-            let current = Self::from_borrowed(cx);
             assert_eq!(current.lifecycle.get(), Lifecycle::New);
             let f = unsafe { current.fun.as_mut().unwrap() };
             current.lifecycle.set(Lifecycle::Running);
             f(current.out.cast());
             current.lifecycle.set(Lifecycle::Finished);
             current.join_waker.take().as_ref().map(Thread::unpark);
-            drop(current);
         }
 
+        current.exit();
+    }
+
+    fn exit(self) {
+        let rt = pneuma::runtime::current();
+
         loop {
-            println!("1");
-            park();
-            std::thread::sleep(std::time::Duration::from_secs(1));
+            let Some(thread) = rt.executor.pop() else {
+                rt.poll_reactor();
+                continue;
+            };
+
+            if self.0.as_ptr() != thread.0 .0.as_ptr() {
+                let cx = thread.0 .0;
+                drop(self);
+                drop(thread);
+                drop(rt);
+                unsafe { sys::load_context(cx) };
+            }
         }
     }
 

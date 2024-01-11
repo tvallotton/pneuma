@@ -22,5 +22,6 @@ std::arch::global_asm!(include_str!("asm/aarch64-macos.s"));
 // pub(crate) use _switch_no_save as switch_no_save;
 extern "C" {
     pub(crate) fn switch_context(store: NonNull<Context>, next: NonNull<Context>);
+    pub(crate) fn load_context(cx: NonNull<Context>) -> !;
     pub(crate) fn start_coroutine(next: RcContext);
 }

@@ -1,4 +1,3 @@
-use pneuma::thread;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -29,6 +28,20 @@ fn yield_now() {
     dbg!();
     assert_eq!(handle.join(), 122);
     counter_assert(&counter, 6);
+}
+
+#[test]
+fn panic_from_green_thread() {
+    let handle = pneuma::thread::spawn(move || panic!("test panic"));
+    assert!(handle.try_join().is_err());
+}
+
+#[test]
+fn backtrace() {
+    pneuma::thread::spawn(move || {
+        println!("{}", std::backtrace::Backtrace::force_capture());
+    })
+    .join();
 }
 
 // #[test]

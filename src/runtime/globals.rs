@@ -5,6 +5,7 @@ use std::mem::ManuallyDrop;
 thread_local! {
     static RUNTIME: ManuallyDrop<UnsafeCell<Runtime>> =  {
         ON_DROP.with(|_| ());
+        let _ = std::backtrace::Backtrace::force_capture();
         let runtime = Runtime::new();
         let runtime = UnsafeCell::new(runtime);
         let runtime = ManuallyDrop::new(runtime);

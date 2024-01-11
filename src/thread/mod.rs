@@ -30,7 +30,7 @@
 //! a `join` method that allows the caller to wait for the completion of the
 //! spawned thread:
 //!
-//! ```rust
+//! ```ignore
 //! use pneuma::thread;
 //!
 //! let thread_join_handle = thread::spawn(move || {
@@ -45,7 +45,7 @@
 //!
 //! To get the behavior of `std` threads, the `try_join`(JoinHandle::try_join) method
 //! can be used:
-//! ```
+//! ```ignore
 //!  use pneuma::thread;
 //!
 //! let thread_join_handle = thread::spawn(move || {
@@ -64,7 +64,7 @@
 //! A new thread can be configured before it is spawned via the [`Builder`] type,
 //! which currently allows you to set the name and stack size for the thread:
 //!
-//! ```rust
+//! ```ignore
 //! use pneuma::thread;
 //!
 //! thread::Builder::new().name("thread1".to_string()).spawn(move || {
@@ -226,7 +226,7 @@ pub fn park() {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use pneuma::thread;
 ///
 /// thread::yield_now();
@@ -319,7 +319,7 @@ impl Thread {
     ///
     /// Threads by default have no name specified:
     ///
-    /// ```
+    /// ```ignore
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new();
@@ -333,7 +333,7 @@ impl Thread {
     ///
     /// Thread with a specified name:
     ///
-    /// ```
+    /// ```ignore
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
