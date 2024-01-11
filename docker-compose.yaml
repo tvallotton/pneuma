@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  pneuma: 
+    container_name: pneuma
+    command: tail -f /dev/null
+    build: .
+    volumes:
+      - ./:/home/app
+      - /home/app/target

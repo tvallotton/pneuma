@@ -14,7 +14,6 @@ pub mod sync;
 mod sys;
 pub mod thread;
 
-
 pub use thread::globals::current;
 
 #[test]
@@ -34,3 +33,5 @@ fn smoke_test() {
     assert_eq!(handle.join(), 122);
     println!("main: finished");
 }
+#[test]
+fn foo() {}

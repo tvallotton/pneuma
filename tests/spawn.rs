@@ -7,7 +7,7 @@ fn counter_assert(counter: &Cell<i32>, prediction: i32) {
 }
 
 #[test]
-fn yield_now() {
+fn s_yield_now() {
     let counter = Rc::new(Cell::new(1));
     let counter_ = counter.clone();
 
