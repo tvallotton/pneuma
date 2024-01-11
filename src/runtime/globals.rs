@@ -8,8 +8,7 @@ thread_local! {
         let _ = std::backtrace::Backtrace::force_capture();
         let runtime = Runtime::new();
         let runtime = UnsafeCell::new(runtime);
-        let runtime = ManuallyDrop::new(runtime);
-        runtime
+        ManuallyDrop::new(runtime)
     };
     static ON_DROP: OnDrop = const { OnDrop };
 }

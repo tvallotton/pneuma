@@ -1,7 +1,6 @@
 use pneuma::thread::Thread;
 
 use pneuma::thread::Stack;
-use std::borrow::BorrowMut;
 use std::cell::UnsafeCell;
 use std::io;
 
@@ -16,7 +15,7 @@ pub(crate) struct Executor {
     pub current: UnsafeCell<Thread>,
     pub run_queue: RefCell<VecDeque<Thread>>,
     pub all: RefCell<VecDeque<Thread>>,
-    pub unused_stacks: RefCell<Vec<Stack>>,
+    pub _unused_stacks: RefCell<Vec<Stack>>,
 }
 
 impl Executor {
@@ -28,7 +27,7 @@ impl Executor {
             current,
             all,
             run_queue: RefCell::default(),
-            unused_stacks: RefCell::default(),
+            _unused_stacks: RefCell::default(),
         }
     }
 
@@ -96,9 +95,5 @@ impl Executor {
 
     pub fn pop(&self) -> Option<Thread> {
         self.run_queue.borrow_mut().pop_front()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.run_queue.borrow().is_empty()
     }
 }

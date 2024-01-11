@@ -4,12 +4,11 @@ use std::{
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},
     ptr::NonNull,
-    thread::current,
 };
 
 use pneuma::sys;
 
-use crate::thread::{park, Thread};
+use crate::thread::Thread;
 
 use super::{
     builder::Builder,
@@ -35,7 +34,7 @@ impl RcContext {
     pub(crate) fn for_os_thread() -> RcContext {
         Context::for_os_thread()
     }
-
+    
     pub fn setup_registers(self) -> Self {
         let registers = unsafe { &mut *self.registers.get() };
         registers[0] = self.stack.bottom();

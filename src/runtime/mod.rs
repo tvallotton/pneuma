@@ -1,4 +1,4 @@
-use pneuma::thread::park;
+
 use std::cell::Cell;
 use std::rc::Rc;
 // use pneuma::reactor::Reactor;
@@ -6,8 +6,8 @@ use std::rc::Rc;
 use executor::Executor;
 pub use globals::current;
 
-use crate::thread::context::Status;
-use crate::thread::{yield_now, Builder, JoinHandle};
+
+
 // mod config;
 mod executor;
 mod globals;
