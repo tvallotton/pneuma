@@ -7,7 +7,7 @@ use executor::Executor;
 pub use globals::current;
 
 use crate::thread::context::Status;
-use crate::thread::{Builder, JoinHandle};
+use crate::thread::{yield_now, Builder, JoinHandle};
 // mod config;
 mod executor;
 mod globals;
@@ -16,7 +16,6 @@ mod globals;
 pub(crate) struct Runtime(Rc<InnerRuntime>);
 
 pub(crate) struct InnerRuntime {
-    shutdown: Cell<bool>,
     polls: Cell<usize>,
     pub executor: Executor,
     // reactor: Reactor,
@@ -25,20 +24,14 @@ pub(crate) struct InnerRuntime {
 impl Runtime {
     pub(crate) fn new() -> Self {
         let executor = Executor::new();
-        let shutdown = Cell::new(false);
         let polls = Cell::new(0);
-        Runtime(Rc::new(InnerRuntime {
-            executor,
-            shutdown,
-            polls,
-        }))
+        Runtime(Rc::new(InnerRuntime { executor, polls }))
     }
 
     pub(crate) fn shutdown(self) {
-        self.shutdown.set(true);
-
-        while !self.executor.is_empty() {
-            park()
+        while self.executor.total_threads() > 1 {
+            self.executor.unpark_all();
+            pneuma::thread::yield_now();
         }
     }
 
@@ -79,7 +72,6 @@ impl Runtime {
         }
     }
 
- 
     pub fn park(self) {
         self.poll();
         if let Some(next) = self.executor.pop() {

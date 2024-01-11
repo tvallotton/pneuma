@@ -29,18 +29,7 @@ impl RcContext {
         F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        // The purpose of this closure is to convert the FnOnce into an FnMut
-        // And to type errase the closure.
-        let mut f = Some(f);
-        let fun = move |out: *mut ()| {
-            let closure = f.take().unwrap();
-            let res = catch_unwind(AssertUnwindSafe(closure));
-            unsafe {
-                out.cast::<Result<T, Box<dyn Any + Send + 'static>>>()
-                    .write(res)
-            }
-        };
-        Context::new::<T, _>(fun, builder)
+        Context::new::<T, _>(type_errased(f), builder)
     }
 
     pub(crate) fn for_os_thread() -> RcContext {
@@ -74,6 +63,7 @@ impl RcContext {
         let rt = pneuma::runtime::current();
 
         loop {
+            rt.executor.remove(self.as_thread());
             let Some(thread) = rt.executor.pop() else {
                 rt.poll_reactor();
                 continue;
@@ -93,6 +83,25 @@ impl RcContext {
         let cx = Self(cx);
         std::mem::forget(cx.clone());
         cx
+    }
+
+    pub fn as_thread(&self) -> &Thread {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
+fn type_errased<F, T>(f: F) -> impl FnMut(*mut ())
+where
+    F: FnOnce() -> T,
+{
+    let mut f = Some(f);
+    move |out: *mut ()| {
+        let closure = f.take().unwrap();
+        let res = catch_unwind(AssertUnwindSafe(closure));
+        unsafe {
+            out.cast::<Result<T, Box<dyn Any + Send + 'static>>>()
+                .write(res)
+        }
     }
 }
 
@@ -117,17 +126,9 @@ impl Drop for RcContext {
         }
 
         match self.lifecycle.get() {
-            Lifecycle::OsThread => {
-
-                // while !self.runtime.executor.is_empty() {
-                //     // Safety: This can only be dropped when the thread local is destroyed
-                //     unsafe { Thread(self).park() }
-                // }
-            }
+            Lifecycle::OsThread => {}
             Lifecycle::Running => {
-                dbg!("running");
-                Thread(self.clone()).unpark();
-                park();
+                unreachable!()
             }
             Lifecycle::Taken => (),
             Lifecycle::New => unsafe { self.fun.drop_in_place() },

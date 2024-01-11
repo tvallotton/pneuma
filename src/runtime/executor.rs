@@ -69,6 +69,27 @@ impl Executor {
         Ok(handle)
     }
 
+    pub fn remove(&self, thread: &Thread) {
+        let mut all = self.all.borrow_mut();
+
+        let Some(i) = all.iter().position(|t| thread.eq(t)) else {
+            return;
+        };
+        all.remove(i);
+        dbg!(all.len());
+    }
+
+    pub fn total_threads(&self) -> usize {
+        self.all.borrow().len()
+    }
+
+    pub fn unpark_all(&self) {
+        for thread in &*self.all.borrow() {
+            println!("{:?}", thread.id());
+            thread.unpark()
+        }
+    }
+
     pub fn push(&self, thread: Thread) {
         self.run_queue.borrow_mut().push_back(thread);
     }

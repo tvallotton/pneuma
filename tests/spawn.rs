@@ -7,7 +7,7 @@ fn counter_assert(counter: &Cell<i32>, prediction: i32) {
 }
 
 #[test]
-fn s_yield_now() {
+fn yield_now() {
     let counter = Rc::new(Cell::new(1));
     let counter_ = counter.clone();
 
@@ -37,29 +37,18 @@ fn panic_from_green_thread() {
 }
 
 #[test]
+fn dangling() {
+    pneuma::thread::spawn(move || {
+        pneuma::thread::yield_now();
+    });
+    pneuma::thread::yield_now();
+}
+
+/// this leaks because libunwind caches memory
+#[test]
 fn backtrace() {
     pneuma::thread::spawn(move || {
         println!("{}", std::backtrace::Backtrace::force_capture());
     })
     .join();
 }
-
-// #[test]
-// fn spawn() {
-//     let handle = pneuma::thread::Builder::new()
-//         .spawn(|| {
-//             println!("task: init");
-//             pneuma::thread::yield_now();
-//             println!("task: middle ");
-//             pneuma::thread::yield_now();
-//             println!("task: exiting");
-//             122
-//         })
-//         .unwrap();
-
-//     println!("main: spawned");
-//     pneuma::thread::yield_now();
-//     println!("main: yielded");
-//     assert_eq!(handle.join(), 122);
-//     println!("main: finished");
-// }

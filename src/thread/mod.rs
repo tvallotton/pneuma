@@ -362,4 +362,8 @@ impl Thread {
     pub(crate) fn for_os_thread() -> Thread {
         Thread(RcContext::for_os_thread())
     }
+
+    pub(crate) fn eq(&self, other: &Thread) -> bool {
+        std::ptr::eq(self.0 .0.as_ptr(), other.0 .0.as_ptr())
+    }
 }
