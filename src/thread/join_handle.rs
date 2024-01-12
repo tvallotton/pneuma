@@ -1,7 +1,5 @@
 use std::{any::Any, io, marker::PhantomData, panic::resume_unwind};
 
-
-
 use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 
 /// An owned permission to join on a green thread (block on its termination).
@@ -20,7 +18,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::spawn`]:
 ///
-/// ```ignore
+/// ```
 /// use pneuma::thread;
 ///
 /// let join_handle: thread::JoinHandle<_> = thread::spawn(|| {
@@ -30,7 +28,7 @@ use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
 ///
 /// Creation from [`thread::Builder::spawn`]:
 ///
-/// ```ignore
+/// ```
 /// use pneuma::thread;
 ///
 /// let builder = thread::Builder::new();

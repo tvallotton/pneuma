@@ -13,7 +13,7 @@
 //!
 //! A new thread can be spawned using the [`thread::spawn`][`spawn`] function:
 //!
-//! ```ignore
+//! ```
 //! use pneuma::thread;
 //!
 //! thread::spawn(move || {
@@ -30,7 +30,7 @@
 //! a `join` method that allows the caller to wait for the completion of the
 //! spawned thread:
 //!
-//! ```ignore
+//! ```
 //! use pneuma::thread;
 //!
 //! let thread_join_handle = thread::spawn(move || {
@@ -45,7 +45,7 @@
 //!
 //! To get the behavior of `std` threads, the `try_join`(JoinHandle::try_join) method
 //! can be used:
-//! ```ignore
+//! ```
 //!  use pneuma::thread;
 //!
 //! let thread_join_handle = thread::spawn(move || {
@@ -64,7 +64,7 @@
 //! A new thread can be configured before it is spawned via the [`Builder`] type,
 //! which currently allows you to set the name and stack size for the thread:
 //!
-//! ```ignore
+//! ```
 //! use pneuma::thread;
 //!
 //! thread::Builder::new().name("thread1".to_string()).spawn(move || {
@@ -106,30 +106,13 @@
 //!
 //! ## Cancellation
 //!
-//! Like OS threads, green threads cannot be easily cancelled without leaking memory or
+//! Like OS threads, green threads cannot forcibly be made to without leaking memory or
 //! causing deadlocks. For this reason, the runtime will always wait for all threads to
 //! finish before exiting the program. This means that if a green thread is running an
 //! infinite loop, the program will never exit.
 //!
-//! However, the runtime offers a mechanism for tasks to exit cooperatively. This is achieved
-//! through the `Thread::cancel` method. The `cancel` method supports three different mechanisms
-//! for cancellation with varying degrees of aggressiveness:
+//! On shutdown, all io will be disabled.
 //!
-//! 1. [`Cancel::FlagOnly`]: Allows the tasks to check for cancellation, through the [`is_cancelled`].
-//! 2. [`Cancel::DisableIo`]: Will cause all pending async io to yield immediately with an error.
-//! 3. [`Cancel::Unwind`]: Will cause the task to unwind when it resumes.
-//!
-//! ```ignore
-//! use pneuma::thread;
-//!
-//! let thread = thread::spawn(|| {
-//!     while !thread::is_cancelled() {
-//!         thread::park()
-//!     }
-//! });
-//! thread::yield_now();
-//! thread.cancel(thread::Cancel::FlagOnly);
-//! ```
 //! Note that there is no guarantee that any of these cancellation options will cause the
 //! thread to exit. When writing applications using `pneuma`, one should be careful not to write
 //! infinite loops that do not exit on cancellation.
@@ -226,7 +209,7 @@ pub fn park() {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use pneuma::thread;
 ///
 /// thread::yield_now();
@@ -260,6 +243,8 @@ pub struct Thread(pub(crate) RcContext);
 /// });
 ///
 /// let other_thread_id = other_thread.join();
+/// dbg!(other_thread_id);
+/// dbg!(thread::current().id());
 /// assert!(thread::current().id() != other_thread_id);
 /// ```
 ///

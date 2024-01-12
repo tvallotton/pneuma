@@ -21,7 +21,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
@@ -51,7 +51,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new()
@@ -61,7 +61,7 @@ impl Builder {
     ///     assert_eq!(thread::current().name(), Some("foo"))
     /// }).unwrap();
     ///
-    /// handler.join().unwrap();
+    /// handler.join()
     /// ```
     pub fn name(self, name: String) -> Self {
         Self {
@@ -77,7 +77,7 @@ impl Builder {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::thread;
     ///
     /// let builder = thread::Builder::new().stack_size(32 * 1024);

@@ -1,8 +1,5 @@
-use pneuma::{
-    thread::{spawn, JoinHandle},
-    time::sleep,
-};
-use std::time::{Duration, Instant};
+use pneuma::thread::spawn;
+use pneuma::time::{sleep, Duration, Instant};
 
 #[test]
 fn sleep_os_thread() {
