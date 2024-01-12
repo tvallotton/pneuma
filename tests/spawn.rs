@@ -22,7 +22,7 @@ fn yield_now() {
     });
 
     counter_assert(&counter, 1);
-    pneuma::current().unpark();
+    pneuma::thread::current().unpark();
     pneuma::thread::yield_now();
     counter_assert(&counter, 3);
     dbg!();

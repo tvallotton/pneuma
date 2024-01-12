@@ -6,7 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
+[features]
+default-features = []
+full = ["io"]
+io = []
+
 [dependencies]
 libc = "0.2.151"
 
 #io-uring = "0.6.2"
+[dev-dependencies]
+pneuma = { path = ".", features = ["full"] }

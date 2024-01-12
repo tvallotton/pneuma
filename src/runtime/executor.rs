@@ -89,6 +89,10 @@ impl Executor {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.run_queue.borrow_mut().is_empty()
+    }
+
     pub fn push(&self, thread: Thread) {
         self.run_queue.borrow_mut().push_back(thread);
     }
