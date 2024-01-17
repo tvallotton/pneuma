@@ -9,7 +9,7 @@ use pneuma::thread::JoinHandle;
 use std::{cell::RefCell, collections::VecDeque};
 
 use crate::sys;
-use crate::thread::context::Status;
+use crate::thread::repr_context::Status;
 
 pub(crate) struct Executor {
     pub current: UnsafeCell<Thread>,

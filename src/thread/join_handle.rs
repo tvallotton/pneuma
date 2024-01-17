@@ -1,6 +1,6 @@
 use std::{any::Any, io, marker::PhantomData, panic::resume_unwind};
 
-use super::{builder::Builder, context::Lifecycle, RcContext, Thread};
+use super::{builder::Builder, repr_context::Lifecycle, Context, Thread};
 
 /// An owned permission to join on a green thread (block on its termination).
 ///
@@ -72,7 +72,7 @@ impl<T> JoinHandle<T> {
         F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        let cx = RcContext::new(f, builder)?;
+        let cx = Context::new(f, builder)?;
         let thread = Thread(cx);
         Ok(JoinHandle(thread, PhantomData))
     }

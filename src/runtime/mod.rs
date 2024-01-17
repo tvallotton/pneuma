@@ -44,10 +44,13 @@ impl Runtime {
     #[inline]
     pub fn poll_reactor(&self) -> io::Result<()> {
         if self.executor.is_empty() {
-            self.reactor.submit_and_wait()
+            #[cfg(feature = "io")]
+            self.reactor.submit_and_wait()?;
         } else {
-            self.reactor.submit_and_yield()
+            #[cfg(feature = "io")]
+            self.reactor.submit_and_yield()?;
         }
+        Ok(())
     }
 
     /// Periodically poll the reactor

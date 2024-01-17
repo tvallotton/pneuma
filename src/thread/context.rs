@@ -1,105 +1,154 @@
-use pneuma::thread::RcContext;
+use std::{
+    any::Any,
+    io,
+    ops::Deref,
+    panic::{catch_unwind, AssertUnwindSafe},
+    ptr::NonNull,
+};
 
-use super::builder::Builder;
-use super::{registers::Registers, stack::Stack};
-use pneuma::thread::Thread;
-use std::alloc::alloc;
-use std::alloc::Layout;
-use std::any::Any;
-use std::cell::Cell;
-use std::cell::UnsafeCell;
-use std::io;
-use std::mem::zeroed;
-use std::ptr::NonNull;
+use pneuma::sys;
 
-/// The thread context as it was left before the switch.
-///
-/// # Allocation
-/// It is import to remember that the context allocation
-/// is extended to contain the closure and its output.
+use crate::thread::Thread;
 
+use super::{
+    builder::Builder,
+    repr_context::{Lifecycle, ReprContext},
+};
+use std::alloc::dealloc;
+
+/// This is a reference counted context.
+/// An RcContext may be either a type errased Task, or
+/// a OS thread context.
 #[repr(C)]
-pub(crate) struct Context {
-    pub registers: UnsafeCell<Registers>,
-    pub stack: Stack,
-    pub layout: Layout,
-    pub name: Option<String>,
-    pub lifecycle: Cell<Lifecycle>,
-    pub status: Cell<Status>,
-    pub refcount: Cell<u64>,
-    pub join_waker: Cell<Option<Thread>>,
-    pub fun: *mut dyn FnMut(*mut ()),
-    pub out: *mut dyn Any,
-    // fun_alloc: impl FnMut(&mut Option<T>),
-    // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
-}
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[repr(u8)]
-pub enum Status {
-    Waiting,
-    Queued,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[repr(u8)]
-pub enum Lifecycle {
-    New,
-    Running,
-    Finished,
-    Taken,
-    OsThread,
-}
+pub(crate) struct Context(pub(crate) NonNull<ReprContext>);
 
 impl Context {
-    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<RcContext>
+    pub fn new<T, F>(f: F, builder: Builder) -> io::Result<Context>
     where
-        F: FnMut(*mut ()) + 'static,
+        F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        unsafe {
-            let (layout, fun_offset, out_offset) = layout::<T, F>();
+        ReprContext::new::<T, _>(type_errased(f), builder)
+    }
 
-            let ptr = alloc(layout);
-            assert!(!ptr.is_null());
+    pub(crate) fn for_os_thread() -> Context {
+        ReprContext::for_os_thread()
+    }
 
-            let fun_alloc = ptr.add(fun_offset) as *mut F;
-            fun_alloc.write(fun);
+    pub fn setup_registers(self) -> Self {
+        let registers = unsafe { &mut *self.registers.get() };
+        registers[0] = self.stack.bottom();
+        registers[1] = sys::start_coroutine as u64;
+        registers[2] = sys::start_coroutine as u64;
+        registers[11] = Self::thread_start as u64;
+        self
+    }
 
-            let out = ptr
-                .add(out_offset)
-                .cast::<Result<T, Box<dyn Any + Send + 'static>>>()
-                as *mut dyn Any;
+    pub extern "C" fn thread_start(cx: NonNull<ReprContext>) {
+        let current = Self::from_borrowed(cx);
+        {
+            assert_eq!(current.lifecycle.get(), Lifecycle::New);
+            let f = unsafe { current.fun.as_mut().unwrap() };
+            current.lifecycle.set(Lifecycle::Running);
+            f(current.out.cast());
+            current.lifecycle.set(Lifecycle::Finished);
+            current.join_waker.take().as_ref().map(Thread::unpark);
+        }
 
-            let cx = Context {
-                registers: zeroed(),
-                stack: Stack::new(builder.stack_size)?,
-                name: builder.name.take(),
-                refcount: 1.into(),
-                status: Cell::new(Status::Waiting),
-                fun: fun_alloc as *mut dyn FnMut(*mut ()),
-                join_waker: Cell::default(),
-                lifecycle: Lifecycle::New.into(),
-                layout,
-                out,
+        current.exit();
+    }
+
+    fn exit(self) {
+        let rt = pneuma::runtime::current();
+
+        loop {
+            rt.executor.remove(self.as_thread());
+            let Some(thread) = rt.executor.pop() else {
+                rt.poll_reactor().ok();
+                continue;
             };
-            ptr.cast::<Context>().write(cx);
-            let cx = RcContext(NonNull::new(ptr.cast()).unwrap());
-            Ok(cx.setup_registers())
+
+            if self.0.as_ptr() != thread.0 .0.as_ptr() {
+                let cx = thread.0 .0;
+                drop(self);
+                drop(thread);
+                drop(rt);
+                unsafe { sys::load_context(cx) };
+            }
         }
     }
 
-    pub fn for_os_thread() -> RcContext {
-        let cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
-        cx.lifecycle.set(Lifecycle::OsThread);
+    pub fn from_borrowed(cx: NonNull<ReprContext>) -> Self {
+        let cx = Self(cx);
+        std::mem::forget(cx.clone());
         cx
+    }
+
+    pub fn as_thread(&self) -> &Thread {
+        unsafe { std::mem::transmute(self) }
     }
 }
 
-pub(crate) fn layout<T, F>() -> (Layout, usize, usize) {
-    let raw_task = Layout::new::<Context>();
-    let fun = Layout::new::<F>();
-    let out = Layout::new::<Result<T, Box<dyn Any + Send + 'static>>>();
-    let (layout, fun) = raw_task.extend(fun).unwrap();
-    let (layout, out) = layout.extend(out).unwrap();
-    (layout, fun, out)
+fn type_errased<F, T>(f: F) -> impl FnMut(*mut ())
+where
+    F: FnOnce() -> T,
+{
+    let mut f = Some(f);
+    move |out: *mut ()| {
+        let closure = f.take().unwrap();
+        let res = catch_unwind(AssertUnwindSafe(closure));
+        unsafe {
+            out.cast::<Result<T, Box<dyn Any + Send + 'static>>>()
+                .write(res)
+        }
+    }
+}
+
+impl Clone for Context {
+    fn clone(&self) -> Self {
+        // SAFETY: The reference doesn't escape the scope
+        let count = self.refcount.get() + 1;
+        self.refcount.set(count);
+        Context(self.0)
+    }
+}
+
+impl Drop for Context {
+    #[track_caller]
+    fn drop(&mut self) {
+        let count = self.refcount.get() - 1;
+        self.refcount.set(count);
+        let layout = self.layout;
+
+        if count != 0 {
+            return;
+        }
+
+        match self.lifecycle.get() {
+            Lifecycle::OsThread => {}
+            Lifecycle::Running => {
+                unreachable!()
+            }
+            Lifecycle::Taken => (),
+            Lifecycle::New => unsafe { self.fun.drop_in_place() },
+            Lifecycle::Finished => unsafe { self.out.drop_in_place() },
+        }
+
+        unsafe {
+            self.0.as_ptr().drop_in_place();
+            dealloc(self.0.as_ptr().cast(), layout);
+        };
+    }
+}
+impl AsRef<ReprContext> for Context {
+    fn as_ref(&self) -> &ReprContext {
+        unsafe { &*self.0.as_ptr() }
+    }
+}
+
+impl Deref for Context {
+    type Target = ReprContext;
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.0.as_ref() }
+    }
 }

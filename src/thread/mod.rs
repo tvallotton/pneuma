@@ -131,24 +131,24 @@
 //! [`with`]: LocalKey::with
 //! [`thread_local!`]: crate::thread_local
 
-pub(crate) use context::Context;
+pub(crate) use repr_context::ReprContext;
 pub use join_handle::JoinHandle;
-pub(crate) use rc_context::RcContext;
+pub(crate) use context::Context;
 use std::cell::Cell;
 
 pub(crate) use stack::Stack;
 
-pub mod context;
+pub mod repr_context;
 pub use globals::current;
 
 use crate::runtime;
 
 pub use self::builder::Builder;
-use self::context::Status;
+use self::repr_context::Status;
 pub(crate) mod builder;
 pub(crate) mod globals;
 pub(crate) mod join_handle;
-pub(crate) mod rc_context;
+pub(crate) mod context;
 pub(crate) mod registers;
 pub(crate) mod stack;
 
@@ -224,7 +224,7 @@ pub fn yield_now() {
 
 #[derive(Clone)]
 #[repr(transparent)]
-pub struct Thread(pub(crate) RcContext);
+pub struct Thread(pub(crate) Context);
 
 /// A unique identifier for a running thread.
 ///
@@ -345,7 +345,7 @@ impl Thread {
     }
 
     pub(crate) fn for_os_thread() -> Thread {
-        Thread(RcContext::for_os_thread())
+        Thread(Context::for_os_thread())
     }
 
     pub(crate) fn eq(&self, other: &Thread) -> bool {

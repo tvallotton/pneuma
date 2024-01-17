@@ -6,9 +6,9 @@
 
 use std::ptr::NonNull;
 
-use pneuma::thread::RcContext;
+use pneuma::thread::Context;
 
-use crate::thread::Context;
+use crate::thread::ReprContext;
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));
@@ -18,7 +18,7 @@ std::arch::global_asm!(include_str!("asm/aarch64-macos.s"));
 
 #[allow(improper_ctypes)]
 extern "C" {
-    pub(crate) fn switch_context(store: NonNull<Context>, next: NonNull<Context>);
-    pub(crate) fn load_context(cx: NonNull<Context>) -> !;
-    pub(crate) fn start_coroutine(next: RcContext);
+    pub(crate) fn switch_context(store: NonNull<ReprContext>, next: NonNull<ReprContext>);
+    pub(crate) fn load_context(cx: NonNull<ReprContext>) -> !;
+    pub(crate) fn start_coroutine(next: Context);
 }
