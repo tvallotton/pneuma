@@ -131,9 +131,9 @@
 //! [`with`]: LocalKey::with
 //! [`thread_local!`]: crate::thread_local
 
-pub(crate) use repr_context::ReprContext;
-pub use join_handle::JoinHandle;
 pub(crate) use context::Context;
+pub use join_handle::JoinHandle;
+pub(crate) use repr_context::ReprContext;
 use std::cell::Cell;
 
 pub(crate) use stack::Stack;
@@ -146,9 +146,9 @@ use crate::runtime;
 pub use self::builder::Builder;
 use self::repr_context::Status;
 pub(crate) mod builder;
+pub(crate) mod context;
 pub(crate) mod globals;
 pub(crate) mod join_handle;
-pub(crate) mod context;
 pub(crate) mod registers;
 pub(crate) mod stack;
 
@@ -295,6 +295,7 @@ impl Thread {
         thread.status.set(Status::Queued);
         runtime::current().executor.push(self.clone());
     }
+
     /// Gets the thread's name.
     ///
     /// For more information about named threads, see
@@ -350,5 +351,9 @@ impl Thread {
 
     pub(crate) fn eq(&self, other: &Thread) -> bool {
         std::ptr::eq(self.0 .0.as_ptr(), other.0 .0.as_ptr())
+    }
+
+    pub(crate) fn io_result(&self) -> &Cell<Option<i32>> {
+        &self.0.io_result
     }
 }

@@ -21,17 +21,18 @@ pub(crate) struct InnerRuntime {
 }
 
 impl Runtime {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new() -> io::Result<Self> {
         let executor = Executor::new();
         let polls = Cell::new(0);
         #[cfg(feature = "io")]
-        let reactor = pneuma::reactor::Reactor::new();
-        Runtime(Rc::new(InnerRuntime {
+        let reactor = pneuma::reactor::Reactor::new()?;
+        let inner = InnerRuntime {
             executor,
             polls,
             #[cfg(feature = "io")]
             reactor,
-        }))
+        };
+        Ok(Runtime(Rc::new(inner)))
     }
 
     pub(crate) fn shutdown(self) {
@@ -44,8 +45,10 @@ impl Runtime {
     #[inline]
     pub fn poll_reactor(&self) -> io::Result<()> {
         if self.executor.is_empty() {
+            dbg!(3);
             #[cfg(feature = "io")]
             self.reactor.submit_and_wait()?;
+            
         } else {
             #[cfg(feature = "io")]
             self.reactor.submit_and_yield()?;

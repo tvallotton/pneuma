@@ -1,4 +1,4 @@
-use std::{cell::UnsafeCell, io};
+use std::{cell::UnsafeCell, io, thread::Thread};
 
 #[cfg(any(
     target_os = "macos",
@@ -10,6 +10,7 @@ use std::{cell::UnsafeCell, io};
 ))]
 pub(crate) use bsd as imp;
 pub use imp::op;
+
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use linux as imp;
 
@@ -24,13 +25,13 @@ pub(crate) use linux as imp;
 pub(crate) mod bsd;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
-mod linux;
+pub(crate) mod linux;
 
 pub struct Reactor(UnsafeCell<imp::Reactor>);
 
 impl Reactor {
-    pub fn new() -> Reactor {
-        Reactor(UnsafeCell::new(imp::Reactor::new()))
+    pub fn new() -> io::Result<Reactor> {
+        Ok(Reactor(UnsafeCell::new(imp::Reactor::new()?)))
     }
 
     pub fn push(&self, ev: imp::Event) -> io::Result<()> {

@@ -30,6 +30,8 @@ pub(crate) struct ReprContext {
     pub refcount: Cell<u64>,
     pub atomic_refcount: AtomicU64,
     pub join_waker: Cell<Option<Thread>>,
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    pub io_result: Cell<Option<i32>>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
     // fun_alloc: impl FnMut(&mut Option<T>),
@@ -81,6 +83,7 @@ impl ReprContext {
                 status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 join_waker: Cell::default(),
+                io_result: Cell::new(None),
                 lifecycle: Lifecycle::New.into(),
                 layout,
                 out,

@@ -6,7 +6,7 @@ thread_local! {
     static RUNTIME: ManuallyDrop<UnsafeCell<Runtime>> =  {
         ON_DROP.with(|_| ());
         let _ = std::backtrace::Backtrace::force_capture();
-        let runtime = Runtime::new();
+        let runtime = Runtime::new().unwrap();
         let runtime = UnsafeCell::new(runtime);
         ManuallyDrop::new(runtime)
     };

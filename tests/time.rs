@@ -5,7 +5,7 @@ use pneuma::time::{sleep, Duration, Instant};
 fn sleep_os_thread() {
     let start = Instant::now();
     sleep(Duration::from_millis(112)).unwrap();
-    assert!(start.elapsed().as_millis() > 112);
+    assert!(dbg!(start.elapsed().as_millis()) >= 112);
 }
 
 #[test]
@@ -13,7 +13,7 @@ fn sleep_green_thread() {
     spawn(|| {
         let start = Instant::now();
         sleep(Duration::from_millis(112)).unwrap();
-        assert!(start.elapsed().as_millis() > 112);
+        assert!(dbg!(start.elapsed().as_millis()) >= 112);
     })
     .join();
 }

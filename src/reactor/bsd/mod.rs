@@ -18,11 +18,11 @@ pub struct Reactor {
 pub use libc::kevent as Event;
 
 impl Reactor {
-    pub fn new() -> Reactor {
-        let fd = unsafe { libc::kqueue() };
+    pub fn new() -> io::Result<Reactor> {
+        let fd = syscall!(kqueue)?;
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
         let list = Vec::with_capacity(1024);
-        Reactor { fd, list }
+        Ok(Reactor { fd, list })
     }
 
     #[inline]
