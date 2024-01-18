@@ -1,12 +1,16 @@
 use std::{
     cell::Cell,
+    future::Future,
     io,
     io::Error,
+    os::fd::AsRawFd,
     ptr::null_mut,
     time::{Duration, Instant},
 };
 
 use libc::kevent;
+
+use crate::{syscall, thread::park};
 
 use super::event::submit;
 
@@ -34,6 +38,34 @@ pub fn sleep(dur: Duration) -> io::Result<()> {
             Ok(())
         }
     })
+}
+
+#[inline]
+pub fn write(fd: &mut impl AsRawFd, buf: &[u8]) -> io::Result<usize> {
+    let fd = fd.as_raw_fd();
+    let count = buf.len();
+    let buf = buf.as_ptr().cast();
+
+    let mut event = ZEROED;
+    event.ident = fd as _;
+    event.flags = libc::EV_ADD | libc::EV_ONESHOT;
+
+    let written = submit(event, || syscall!(write, fd, buf, count))?;
+    Ok(written as usize)
+}
+
+#[inline]
+pub fn read(fd: &mut impl AsRawFd, buf: &mut [u8]) -> io::Result<usize> {
+    let fd = fd.as_raw_fd();
+    let count = buf.len();
+    let buf = buf.as_mut_ptr().cast();
+
+    let mut event = ZEROED;
+    event.ident = fd as _;
+    event.flags = libc::EV_ADD | libc::EV_ONESHOT;
+
+    let read = submit(event, || syscall!(write, fd, buf, count))?;
+    Ok(read as _)
 }
 
 fn event_id() -> usize {

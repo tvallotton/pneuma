@@ -9,6 +9,7 @@ use std::{cell::UnsafeCell, io};
     target_os = "dragonfly"
 ))]
 pub(crate) use bsd as imp;
+pub use imp::op;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use linux as imp;
 

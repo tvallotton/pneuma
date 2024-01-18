@@ -58,7 +58,7 @@ impl Context {
         current.exit();
     }
 
-    fn exit(self) {
+    fn exit(self) -> ! {
         let rt = pneuma::runtime::current();
 
         loop {

@@ -11,6 +11,7 @@ use std::cell::UnsafeCell;
 use std::io;
 use std::mem::zeroed;
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicU64;
 
 /// The thread context as it was left before the switch.
 ///
@@ -27,6 +28,7 @@ pub(crate) struct ReprContext {
     pub lifecycle: Cell<Lifecycle>,
     pub status: Cell<Status>,
     pub refcount: Cell<u64>,
+    pub atomic_refcount: AtomicU64,
     pub join_waker: Cell<Option<Thread>>,
     pub fun: *mut dyn FnMut(*mut ()),
     pub out: *mut dyn Any,
@@ -75,6 +77,7 @@ impl ReprContext {
                 stack: Stack::new(builder.stack_size)?,
                 name: builder.name.take(),
                 refcount: 1.into(),
+                atomic_refcount: 1.into(),
                 status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 join_waker: Cell::default(),

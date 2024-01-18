@@ -27,7 +27,6 @@ where
 #[inline]
 pub fn wait(mut ev: Event) -> io::Result<()> {
     let runtime = pneuma::runtime::current();
-
     let thread = runtime.executor.current();
     ev.udata = unsafe { transmute(thread) };
     runtime.reactor.push(ev)?;
