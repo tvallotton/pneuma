@@ -12,12 +12,13 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     let thread = rt.executor.current();
     let sqe = sqe.user_data(unsafe { transmute(thread.clone()) });
     rt.reactor.push(sqe)?;
-
+    let start = std::time::Instant::now();
     loop {
         let Some(io_result) = thread.io_result().take() else {
             pneuma::thread::park();
             continue;
         };
+        dbg!(start.elapsed());
 
         if io_result.is_negative() {
             return Err(Error::from_raw_os_error(-io_result));

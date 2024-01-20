@@ -37,6 +37,7 @@ pub(crate) struct ReprContext {
     // fun_alloc: impl FnMut(&mut Option<T>),
     // out_alloc: Result<T, Box<dyn Any + Send + 'static>,
 }
+
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum Status {
@@ -83,6 +84,7 @@ impl ReprContext {
                 status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 join_waker: Cell::default(),
+                #[cfg(any(target_os = "linux", target_os = "android"))]
                 io_result: Cell::new(None),
                 lifecycle: Lifecycle::New.into(),
                 layout,

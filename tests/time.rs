@@ -26,6 +26,7 @@ fn sleep_concurrent() {
         let handle = spawn(move || {
             sleep(Duration::from_millis(50)).unwrap();
             println!("{i}");
+            dbg!(start.elapsed());
         });
         handles.push(handle);
     }
@@ -34,5 +35,5 @@ fn sleep_concurrent() {
         handle.join();
     }
     dbg!(start.elapsed());
-    assert!(start.elapsed().as_millis() < 100);
+    assert!(dbg!(start.elapsed().as_millis()) < 100);
 }

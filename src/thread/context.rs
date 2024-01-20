@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    cell::UnsafeCell,
     io,
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},

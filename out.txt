@@ -1,0 +1,42 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.01s
+
+
+running 1 test
+test sleep_concurrent ... FAILED
+
+failures:
+
+---- sleep_concurrent stdout ----
+[src/runtime/mod.rs:48] 3 = 3
+[src/reactor/linux/event.rs:21] start.elapsed() = 61.598875ms
+2
+[tests/time.rs:29] start.elapsed() = 115.227958ms
+[src/runtime/executor.rs:78] all.len() = 3
+[src/reactor/linux/event.rs:21] start.elapsed() = 74.596292ms
+1
+[tests/time.rs:29] start.elapsed() = 128.107917ms
+[src/runtime/executor.rs:78] all.len() = 2
+[src/reactor/linux/event.rs:21] start.elapsed() = 82.717042ms
+0
+[tests/time.rs:29] start.elapsed() = 131.130417ms
+[src/runtime/executor.rs:78] all.len() = 1
+[tests/time.rs:37] start.elapsed() = 135.191625ms
+[tests/time.rs:38] start.elapsed().as_millis() = 138
+thread 'sleep_concurrent' panicked at tests/time.rs:38:5:
+assertion failed: dbg!(start.elapsed().as_millis()) < 100
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sleep_concurrent
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.22s
+

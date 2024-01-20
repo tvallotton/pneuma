@@ -353,6 +353,7 @@ impl Thread {
         std::ptr::eq(self.0 .0.as_ptr(), other.0 .0.as_ptr())
     }
 
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     pub(crate) fn io_result(&self) -> &Cell<Option<i32>> {
         &self.0.io_result
     }
