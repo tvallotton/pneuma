@@ -1,9 +1,8 @@
 use std::io;
+use std::ops::RangeBounds;
 use std::{mem::zeroed, os::raw::c_void, ptr::null_mut};
 
-thread_local! {
-    static PAGE_SIZE: usize = unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) as usize};
-}
+use crate::syscall;
 
 #[repr(C)]
 pub(crate) struct Stack {
@@ -21,18 +20,19 @@ impl Stack {
     #[allow(unused_mut)]
     pub fn new(mut size: usize) -> io::Result<Stack> {
         if size == 0 {
-            return unsafe { zeroed() };
+            return unsafe { Ok(zeroed()) };
         }
 
         let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
 
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
         {
-            flags |= libc::MAP_STACK | libc::MAP_GROWSDOWN;
+            flags |= libc::MAP_STACK;
         }
 
-        let page_size = PAGE_SIZE.with(|s| *s);
-        size += page_size - size % page_size;
+        size += page_size() - size % page_size();
+        size += page_size();
+
         let data = unsafe {
             libc::mmap(
                 null_mut(),
@@ -47,7 +47,31 @@ impl Stack {
         if data as i64 == -1 {
             return Err(io::Error::last_os_error());
         }
-        Ok(Stack { data, size })
+        let stack = Stack { data, size };
+        stack.protect_page()?;
+        Ok(stack)
+    }
+
+    pub fn is_stackoverflow(&self, ptr: *mut c_void) -> bool {
+        let range = (self.data as usize)..(self.data as usize + page_size());
+        range.contains(&(ptr as usize))
+    }
+
+    pub fn protect_page(&self) -> io::Result<()> {
+        if self.data.is_null() {
+            return Ok(());
+        }
+        syscall!(mprotect, self.data as *mut _, page_size(), libc::PROT_NONE)?;
+
+        Ok(())
+    }
+
+    pub fn stack_t(&self) -> libc::stack_t {
+        libc::stack_t {
+            ss_sp: self.data,
+            ss_size: self.size,
+            ss_flags: 0,
+        }
     }
 }
 
@@ -57,4 +81,10 @@ impl Drop for Stack {
             let _x = unsafe { libc::munmap(self.data, self.size) };
         }
     }
+}
+pub(crate) fn page_size() -> usize {
+    thread_local! {
+        static PAGE_SIZE: usize = unsafe { libc::sysconf(libc::_SC_PAGE_SIZE) as usize};
+    }
+    PAGE_SIZE.with(|ps| *ps)
 }

@@ -6,9 +6,12 @@ use std::rc::Rc;
 use executor::Executor;
 pub use globals::current;
 
+use self::singal_stack::SignalStack;
+
 // mod config;
 mod executor;
 mod globals;
+mod singal_stack;
 
 #[derive(Clone)]
 pub(crate) struct Runtime(Rc<InnerRuntime>);
@@ -18,6 +21,7 @@ pub(crate) struct InnerRuntime {
     pub executor: Executor,
     #[cfg(feature = "io")]
     pub reactor: pneuma::reactor::Reactor,
+    pub signal_stack: SignalStack,
 }
 
 impl Runtime {
@@ -26,11 +30,13 @@ impl Runtime {
         let polls = Cell::new(0);
         #[cfg(feature = "io")]
         let reactor = pneuma::reactor::Reactor::new()?;
+        let signal_stack = SignalStack::new()?;
         let inner = InnerRuntime {
             executor,
             polls,
             #[cfg(feature = "io")]
             reactor,
+            signal_stack,
         };
         Ok(Runtime(Rc::new(inner)))
     }
@@ -48,7 +54,6 @@ impl Runtime {
             dbg!(3);
             #[cfg(feature = "io")]
             self.reactor.submit_and_wait()?;
-            
         } else {
             #[cfg(feature = "io")]
             self.reactor.submit_and_yield()?;

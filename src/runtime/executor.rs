@@ -67,7 +67,7 @@ impl Executor {
         self.push(handle.thread().clone());
         Ok(handle)
     }
-
+    // TODO: make this O(1) instead of O(n)
     pub fn remove(&self, thread: &Thread) {
         let mut all = self.all.borrow_mut();
 
@@ -75,7 +75,6 @@ impl Executor {
             return;
         };
         all.remove(i);
-        dbg!(all.len());
     }
 
     pub fn total_threads(&self) -> usize {

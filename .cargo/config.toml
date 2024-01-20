@@ -2,5 +2,5 @@
 # features = ["io"]
 # target = "aarch64-unknown-linux-gnu"
 
-# [target.aarch64-unknown-linux-gnu]
-# runner = "valgrind --leak-check=full"
+[target.aarch64-unknown-linux-gnu]
+runner = "valgrind --leak-check=full"
