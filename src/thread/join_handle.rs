@@ -1,4 +1,6 @@
-use std::{any::Any, io, marker::PhantomData, panic::resume_unwind};
+use std::{any::Any, io, marker::PhantomData, panic::resume_unwind, sync::Arc};
+
+use crate::runtime::SharedQueue;
 
 use super::{builder::Builder, repr_context::Lifecycle, Context, Thread};
 
@@ -67,12 +69,12 @@ use super::{builder::Builder, repr_context::Lifecycle, Context, Thread};
 pub struct JoinHandle<T>(pub(crate) Thread, PhantomData<T>);
 
 impl<T> JoinHandle<T> {
-    pub(crate) fn new<F>(f: F, builder: Builder) -> io::Result<Self>
+    pub(crate) fn new<F>(f: F, sq: Arc<SharedQueue>, builder: Builder) -> io::Result<Self>
     where
         F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        let cx = Context::new(f, builder)?;
+        let cx = Context::new(f, sq, builder)?;
         let thread = Thread(cx);
         Ok(JoinHandle(thread, PhantomData))
     }
@@ -94,7 +96,7 @@ impl<T> JoinHandle<T> {
                 Lifecycle::Taken | Lifecycle::OsThread => unreachable!(),
                 Lifecycle::New | Lifecycle::Running => {
                     self.0 .0.join_waker.set(Some(pneuma::thread::current()));
-                    pneuma::thread::park()
+                    dbg!(pneuma::thread::park());
                 }
                 Lifecycle::Finished => unsafe {
                     self.0 .0.lifecycle.set(Lifecycle::Taken);

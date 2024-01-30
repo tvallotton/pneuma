@@ -8,15 +8,15 @@
 // mod runtime;
 extern crate self as pneuma;
 
+#[macro_use]
+mod utils;
 // mod runtime;
 mod future;
 pub mod net;
-#[cfg(feature = "io")]
+
 mod reactor;
 mod runtime;
 pub mod sync;
 mod sys;
 pub mod thread;
-#[cfg(feature = "io")]
 pub mod time;
-mod utils;

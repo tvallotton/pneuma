@@ -1,7 +1,7 @@
-use pneuma::thread::Context;
-
 use super::builder::Builder;
 use super::{registers::Registers, stack::Stack};
+use pneuma::runtime::SharedQueue;
+use pneuma::thread::Context;
 use pneuma::thread::Thread;
 use std::alloc::alloc;
 use std::alloc::Layout;
@@ -10,8 +10,10 @@ use std::cell::Cell;
 use std::cell::UnsafeCell;
 use std::io;
 use std::mem::zeroed;
+
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
 
 /// The thread context as it was left before the switch.
 ///
@@ -30,6 +32,8 @@ pub(crate) struct ReprContext {
     pub refcount: Cell<u64>,
     pub atomic_refcount: AtomicU64,
     pub join_waker: Cell<Option<Thread>>,
+    pub shared_queue: Arc<SharedQueue>,
+    pub is_cancelled: Cell<bool>,
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub io_result: Cell<Option<i32>>,
     pub fun: *mut dyn FnMut(*mut ()),
@@ -56,7 +60,7 @@ pub enum Lifecycle {
 }
 
 impl ReprContext {
-    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<Context>
+    pub fn new<T, F>(fun: F, sq: Arc<SharedQueue>, mut builder: Builder) -> io::Result<Context>
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -84,8 +88,10 @@ impl ReprContext {
                 status: Cell::new(Status::Waiting),
                 fun: fun_alloc as *mut dyn FnMut(*mut ()),
                 join_waker: Cell::default(),
+                shared_queue: sq,
                 #[cfg(any(target_os = "linux", target_os = "android"))]
                 io_result: Cell::new(None),
+                is_cancelled: Cell::default(),
                 lifecycle: Lifecycle::New.into(),
                 layout,
                 out,
@@ -96,8 +102,8 @@ impl ReprContext {
         }
     }
 
-    pub fn for_os_thread() -> Context {
-        let cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
+    pub fn for_os_thread(sq: Arc<SharedQueue>) -> Context {
+        let cx = Self::new::<(), _>(|_| (), sq, Builder::for_os_thread()).unwrap();
         cx.lifecycle.set(Lifecycle::OsThread);
         cx
     }

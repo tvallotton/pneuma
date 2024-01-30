@@ -1,4 +1,7 @@
-use std::{cell::UnsafeCell, io, thread::Thread};
+use std::{
+    cell::{RefCell, UnsafeCell},
+    io,
+};
 
 #[cfg(any(
     target_os = "macos",
@@ -27,22 +30,22 @@ pub(crate) mod bsd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) mod linux;
 
-pub struct Reactor(UnsafeCell<imp::Reactor>);
+pub struct Reactor(RefCell<imp::Reactor>);
 
 impl Reactor {
     pub fn new() -> io::Result<Reactor> {
-        Ok(Reactor(UnsafeCell::new(imp::Reactor::new()?)))
+        Ok(Reactor(RefCell::new(imp::Reactor::new()?)))
     }
 
     pub fn push(&self, ev: imp::Event) -> io::Result<()> {
-        unsafe { &mut *self.0.get() }.push(ev)
+        borrow_mut!(self.0).push(ev)
     }
 
     pub fn submit_and_yield(&self) -> io::Result<()> {
-        unsafe { &mut *self.0.get() }.submit_and_yield()
+        borrow_mut!(self.0).submit_and_yield()
     }
 
     pub fn submit_and_wait(&self) -> io::Result<()> {
-        unsafe { &mut *self.0.get() }.submit_and_wait()
+        borrow_mut!(self.0).submit_and_wait()
     }
 }

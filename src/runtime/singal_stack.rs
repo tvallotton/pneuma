@@ -1,13 +1,12 @@
 use crate::{syscall, thread::Stack};
 
-use std::{
-    io,
-    mem::zeroed,
-    ptr::{null, null_mut},
-};
+use std::{io, mem::zeroed, ptr::null_mut};
 
-use libc::{SA_ONSTACK, SA_SIGINFO, SIGSEGV, SS_DISABLE};
+use libc::{SA_ONSTACK, SA_SIGINFO, SS_DISABLE};
 
+/// This struct when initialized will set itself to be the
+/// signal handler stack for the current thread. When dropped,
+/// it will remove itself.
 pub struct SignalStack {
     stack: Stack,
 }
@@ -15,7 +14,7 @@ pub struct SignalStack {
 impl SignalStack {
     pub fn new() -> io::Result<Self> {
         SignalStack {
-            stack: Stack::new(libc::MINSIGSTKSZ)?,
+            stack: Stack::new(libc::MINSIGSTKSZ.max(1 << 15))?,
         }
         .install()
     }
@@ -31,7 +30,7 @@ impl SignalStack {
         syscall!(sigaltstack, &ss, null_mut())?;
         Ok(())
     }
-    // TODO: figure out which signal does BSD use.
+
     fn install_signal_handler(&self) -> io::Result<()> {
         let mut action: libc::sigaction = unsafe { zeroed() };
         action.sa_flags = SA_SIGINFO | SA_ONSTACK;

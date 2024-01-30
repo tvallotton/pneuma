@@ -9,7 +9,7 @@ use io_uring::{
     types::{Fd, Timespec},
 };
 
-use super::event::submit;
+use super::{event::submit, Event};
 
 pub fn sleep(dur: Duration) -> io::Result<()> {
     let timespec = Timespec::new().sec(dur.as_secs()).nsec(dur.subsec_nanos());
@@ -23,14 +23,33 @@ pub fn sleep(dur: Duration) -> io::Result<()> {
     Err(err)
 }
 
+#[inline]
 pub fn write(fd: &impl AsRawFd, buf: &[u8]) -> io::Result<usize> {
     let sqe = opcode::Write::new(Fd(fd.as_raw_fd()), buf.as_ptr(), buf.len() as _).build();
     let written = submit(sqe)?;
     Ok(written as _)
 }
 
+#[inline]
 pub fn read(fd: &impl AsRawFd, buf: &mut [u8]) -> io::Result<usize> {
     let sqe = opcode::Read::new(Fd(fd.as_raw_fd()), buf.as_mut_ptr(), buf.len() as _).build();
     let read = submit(sqe)?;
     Ok(read as _)
+}
+
+#[inline]
+pub fn readable(fd: &impl AsRawFd, flags: u32) -> io::Result<usize> {
+    let sqe = opcode::PollAdd::new(Fd(fd.as_raw_fd()), flags)
+        .multi(false)
+        .build();
+    let read = submit(sqe)?;
+    Ok(read as _)
+}
+
+#[inline]
+pub fn readable_multishot(fd: &impl AsRawFd, flags: u32) -> Event {
+    opcode::PollAdd::new(Fd(fd.as_raw_fd()), flags)
+        .multi(true)
+        .build()
+        .user_data(0)
 }

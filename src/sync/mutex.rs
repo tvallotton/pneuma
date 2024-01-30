@@ -4,6 +4,7 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     ops::{Deref, DerefMut},
     sync::PoisonError,
+    task::Waker,
 };
 
 use crate::thread::yield_now;
@@ -118,8 +119,9 @@ use crate::thread::yield_now;
 /// [`std::sync::Mutex`]: struct@std::sync::Mutex
 /// [`Send`]: trait@std::marker::Send
 /// [`lock`]: method@Mutex::lock
+#[derive(Default)]
 pub struct Mutex<T> {
-    queue: std::sync::Mutex<VecDeque<Thread>>,
+    queue: std::sync::Mutex<VecDeque<Waker>>,
     data: std::sync::Mutex<T>,
 }
 
@@ -149,10 +151,11 @@ impl<T> Mutex<T> {
             }
             if !subscribed {
                 let mut queue = self.queue.lock().unwrap();
-                queue.push_back(current());
+                queue.push_back(current().into());
                 subscribed = true;
             }
-            park()
+            park();
+            dbg!();
         }
     }
 
@@ -177,15 +180,10 @@ impl<T> Mutex<T> {
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
-        self.1
-            .queue
-            .lock()
-            .unwrap()
-            .pop_front()
-            .as_ref()
-            .map(Thread::unpark);
-        // we yield to allow other threads to
-        // lock the mutex first
+        let Some(waker) = self.1.queue.lock().unwrap().pop_front() else {
+            unreachable!();
+        };
+        waker.wake();
         yield_now();
     }
 }

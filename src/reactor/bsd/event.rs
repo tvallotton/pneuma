@@ -2,7 +2,10 @@
 
 use super::Event;
 use libc::{EAGAIN, EINPROGRESS, EWOULDBLOCK};
-use std::{io, mem::transmute};
+use std::{
+    io::{self, Error},
+    mem::transmute,
+};
 
 #[inline]
 pub fn submit<F, T>(event: Event, mut f: F) -> io::Result<T>
@@ -29,7 +32,11 @@ pub fn wait(mut ev: Event) -> io::Result<()> {
     let runtime = pneuma::runtime::current();
     let thread = runtime.executor.current();
     ev.udata = unsafe { transmute(thread) };
+    if thread.is_cancelled() {
+        return Err(Error::from_raw_os_error(libc::ECANCELED));
+    }
     runtime.reactor.push(ev)?;
     runtime.park();
+
     Ok(())
 }

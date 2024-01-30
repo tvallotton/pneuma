@@ -14,8 +14,13 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     rt.reactor.push(sqe)?;
     let start = std::time::Instant::now();
     loop {
+        if thread.is_cancelled() {
+            return Err(Error::from_raw_os_error(libc::ECANCELED));
+        }
+
         let Some(io_result) = thread.io_result().take() else {
-            pneuma::thread::park();
+            dbg!(std::panic::Location::caller());
+            dbg!(pneuma::thread::park());
             continue;
         };
         dbg!(start.elapsed());

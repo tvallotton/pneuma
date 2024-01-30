@@ -134,17 +134,24 @@
 pub(crate) use context::Context;
 pub use join_handle::JoinHandle;
 pub(crate) use repr_context::ReprContext;
-use std::cell::Cell;
+use std::{
+    cell::Cell,
+    mem::{forget, transmute},
+    sync::{atomic::Ordering, Arc},
+};
 
 pub(crate) use stack::Stack;
 
 pub mod repr_context;
 pub use globals::current;
 
-use crate::runtime;
+use crate::{
+    runtime::{self, SharedQueue},
+    sys,
+};
 
 pub use self::builder::Builder;
-use self::repr_context::Status;
+use self::repr_context::{Lifecycle, Status};
 pub(crate) mod builder;
 pub(crate) mod context;
 pub(crate) mod globals;
@@ -174,7 +181,8 @@ where
 /// See also [`pneuma::thread::yield_now()`] for a function that yields once cooperatively and reschedules the
 /// thread immediately.
 pub fn park() {
-    runtime::current().park()
+    runtime::current().park();
+    dbg!();
 }
 
 /// Cooperatively gives up a timeslice to the pneuma scheduler.
@@ -219,10 +227,10 @@ pub fn park() {
 /// [`channel`]: std::sync::mpsc::channel
 pub fn yield_now() {
     current().unpark();
-    park()
+    park();
+    dbg!();
 }
 
-#[derive(Clone)]
 #[repr(transparent)]
 pub struct Thread(pub(crate) Context);
 
@@ -287,6 +295,7 @@ impl Thread {
     /// ```
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake
+    #[track_caller]
     pub fn unpark(&self) {
         let thread = &self.0;
         if thread.status.get() == Status::Queued {
@@ -345,8 +354,8 @@ impl Thread {
         ThreadId(self.0 .0.as_ptr() as usize)
     }
 
-    pub(crate) fn for_os_thread() -> Thread {
-        Thread(Context::for_os_thread())
+    pub(crate) fn for_os_thread(sq: Arc<SharedQueue>) -> Thread {
+        Thread(Context::for_os_thread(sq))
     }
 
     pub(crate) fn eq(&self, other: &Thread) -> bool {
@@ -356,5 +365,91 @@ impl Thread {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub(crate) fn io_result(&self) -> &Cell<Option<i32>> {
         &self.0.io_result
+    }
+
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.0.is_cancelled.get()
+    }
+
+    pub fn into_context(self) -> Context {
+        unsafe { transmute(self) }
+    }
+
+    pub fn from_owned(cx: Context) -> Thread {
+        Thread(cx)
+    }
+
+    pub fn from_borrowed(cx: Context) -> Thread {
+        let out = Thread(cx);
+        forget(out.clone());
+        out
+    }
+
+    fn exit(self) -> ! {
+        let rt = pneuma::runtime::current();
+
+        loop {
+            rt.executor.remove(&self);
+            let Some(thread) = rt.executor.pop() else {
+                rt.poll_reactor().ok();
+                continue;
+            };
+
+            if self.0 .0.as_ptr() != thread.0 .0.as_ptr() {
+                let cx = thread.0 .0;
+                drop(self);
+                drop(thread);
+                drop(rt);
+                unsafe { sys::load_context(cx) };
+            }
+        }
+    }
+}
+
+/// Returns whether the currently running
+/// task is cancelled and should exit cooperatively.
+pub fn is_cancelled() -> bool {
+    current().0.is_cancelled.get()
+}
+
+impl Clone for Thread {
+    fn clone(&self) -> Self {
+        let cx = self.0;
+        let count = cx.refcount.get().overflowing_add(1).0;
+        cx.refcount.set(count);
+
+        Thread(cx)
+    }
+}
+
+impl Drop for Thread {
+    fn drop(&mut self) {
+        let cx = self.0;
+        let count = cx.refcount.get() - 1;
+        cx.refcount.set(count);
+        let layout = cx.layout;
+
+        if count != 0 {
+            return;
+        }
+
+        match cx.lifecycle.get() {
+            Lifecycle::OsThread => {}
+            Lifecycle::Running => {
+                unreachable!()
+            }
+            Lifecycle::Taken => (),
+            Lifecycle::New => unsafe { cx.fun.drop_in_place() },
+            Lifecycle::Finished => unsafe { cx.out.drop_in_place() },
+        }
+
+        let count = cx.atomic_refcount.fetch_sub(1, Ordering::Release);
+
+        if count == 1 {
+            unsafe {
+                self.0 .0.as_ptr().drop_in_place();
+                std::alloc::dealloc(self.0 .0.as_ptr().cast(), layout);
+            };
+        }
     }
 }

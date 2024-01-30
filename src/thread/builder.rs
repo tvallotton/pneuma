@@ -2,11 +2,12 @@ use std::io;
 
 use pneuma::thread::JoinHandle;
 
-use crate::runtime::current;
+use crate::runtime::{current, Runtime};
 
 pub struct Builder {
     pub(crate) name: Option<String>,
     pub(crate) stack_size: usize,
+    pub(crate) rt: Option<Runtime>,
 }
 
 impl Default for Builder {
@@ -38,6 +39,7 @@ impl Builder {
         Builder {
             name: None,
             stack_size: 1 << 16,
+            rt: None,
         }
     }
 
@@ -91,14 +93,21 @@ impl Builder {
         F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        current().executor.spawn(f, self)
+        current().spawn(f, self)
     }
 
     pub(crate) fn for_os_thread() -> Self {
         Builder {
             name: std::thread::current().name().map(Into::into),
-
             stack_size: 0,
+            rt: None,
+        }
+    }
+
+    pub(crate) fn runtime(self, rt: Runtime) -> Self {
+        Builder {
+            rt: Some(rt),
+            ..self
         }
     }
 }

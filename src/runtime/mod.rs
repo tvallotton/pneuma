@@ -1,71 +1,94 @@
-use std::cell::Cell;
 use std::io;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::{cell::Cell, mem};
+
 // use pneuma::reactor::Reactor;
-// use pneuma::thread::JoinHandle;
 use executor::Executor;
 pub use globals::current;
+use pneuma::thread::{Builder, JoinHandle};
+
+use pneuma::reactor::Reactor;
 
 use self::singal_stack::SignalStack;
+pub(crate) use shared_queue::SharedQueue;
 
 // mod config;
 mod executor;
 mod globals;
+mod shared_queue;
 mod singal_stack;
 
 #[derive(Clone)]
 pub(crate) struct Runtime(Rc<InnerRuntime>);
 
+#[allow(unused)]
 pub(crate) struct InnerRuntime {
-    polls: Cell<usize>,
+    polls: Cell<u64>,
     pub executor: Executor,
-    #[cfg(feature = "io")]
-    pub reactor: pneuma::reactor::Reactor,
+    pub reactor: Reactor,
+    pub shared_queue: Arc<SharedQueue>,
+
     pub signal_stack: SignalStack,
 }
 
 impl Runtime {
+    #[rustfmt::skip]
     pub(crate) fn new() -> io::Result<Self> {
-        let executor = Executor::new();
-        let polls = Cell::new(0);
-        #[cfg(feature = "io")]
-        let reactor = pneuma::reactor::Reactor::new()?;
+        let polls         = Cell::new(0);
+        let reactor       = Reactor::new()?;
         let signal_stack = SignalStack::new()?;
+        let shared_queue  = SharedQueue::new(&reactor)?;
+        let executor      = Executor::new(shared_queue.clone());
+
         let inner = InnerRuntime {
             executor,
             polls,
-            #[cfg(feature = "io")]
             reactor,
+            shared_queue,
             signal_stack,
         };
-        Ok(Runtime(Rc::new(inner)))
+
+        let rt = Runtime(Rc::new(inner));
+
+        Ok(rt)
     }
 
     pub(crate) fn shutdown(self) {
         while self.executor.total_threads() > 1 {
+            dbg!();
             self.executor.unpark_all();
+            dbg!();
             pneuma::thread::yield_now();
+            dbg!();
         }
+        dbg!()
     }
 
     #[inline]
     pub fn poll_reactor(&self) -> io::Result<()> {
-        if self.executor.is_empty() {
-            dbg!(3);
-            #[cfg(feature = "io")]
-            self.reactor.submit_and_wait()?;
-        } else {
-            #[cfg(feature = "io")]
-            self.reactor.submit_and_yield()?;
+        let mut queue = self.shared_queue.queue.lock().unwrap();
+
+        while let Some(waker) = queue.pop_front() {
+            dbg!();
+            unsafe { waker.local_wake() };
         }
-        Ok(())
+
+        if self.executor.is_empty() {
+            // we purposefully block while holding the lock
+            // so other threads will know we are blocking
+            self.reactor.submit_and_wait()
+        } else {
+            drop(queue);
+            self.reactor.submit_and_yield()
+        }
     }
 
     /// Periodically poll the reactor
     pub fn poll(&self) -> io::Result<()> {
         let polls = (self.polls.get() + 1) % 61;
         self.polls.set(polls);
-        if polls == 0 || self.executor.is_empty() {
+        if polls == 0 || dbg!(self.executor.is_empty()) {
             return self.poll_reactor();
         }
         Ok(())
@@ -73,9 +96,20 @@ impl Runtime {
 
     pub fn park(self) {
         self.poll().unwrap();
+
         if let Some(next) = self.executor.pop() {
             self.executor.switch_to(next);
         }
+        dbg!();
+    }
+
+    pub(crate) fn spawn<T, F>(&self, f: F, builder: Builder) -> io::Result<JoinHandle<T>>
+    where
+        F: FnOnce() -> T + 'static,
+        T: 'static,
+    {
+        let sq = self.shared_queue.clone();
+        self.executor.spawn(f, sq, builder)
     }
 }
 

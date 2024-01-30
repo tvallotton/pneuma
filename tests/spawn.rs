@@ -33,6 +33,7 @@ fn yield_now() {
 #[test]
 fn panic_from_green_thread() {
     let handle = pneuma::thread::spawn(move || panic!("test panic"));
+    println!("handle-1");
     assert!(handle.try_join().is_err());
 }
 

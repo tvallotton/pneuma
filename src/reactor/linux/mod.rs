@@ -35,7 +35,8 @@ impl Reactor {
 
     #[inline]
     pub fn submit_and_yield(&mut self) -> io::Result<()> {
-        self.submit(Duration::ZERO)
+        self.io_uring.submit_and_wait(0)?;
+        Ok(())
     }
 
     #[inline]
@@ -56,7 +57,11 @@ impl Reactor {
 
     pub fn wake_tasks(&mut self) {
         for cqe in self.io_uring.completion() {
-            let thread: Thread = unsafe { transmute(cqe.user_data()) };
+            let option: Option<Thread> = unsafe { transmute(cqe.user_data()) };
+            let Some(thread) = option else {
+                continue;
+            };
+
             thread.unpark();
             thread.0.io_result.set(Some(cqe.result()));
         }

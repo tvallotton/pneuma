@@ -1,6 +1,5 @@
 use std::{
     cell::Cell,
-    future::Future,
     io,
     io::Error,
     os::fd::AsRawFd,
@@ -10,7 +9,7 @@ use std::{
 
 use libc::kevent;
 
-use crate::{syscall, thread::park};
+use crate::{syscall};
 
 use super::event::submit;
 

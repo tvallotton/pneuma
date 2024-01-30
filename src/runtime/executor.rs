@@ -3,6 +3,9 @@ use pneuma::thread::Thread;
 use pneuma::thread::Stack;
 use std::cell::UnsafeCell;
 use std::io;
+use std::os::fd::OwnedFd;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use pneuma::thread::Builder;
 use pneuma::thread::JoinHandle;
@@ -10,6 +13,8 @@ use std::{cell::RefCell, collections::VecDeque};
 
 use crate::sys;
 use crate::thread::repr_context::Status;
+
+use super::SharedQueue;
 
 pub(crate) struct Executor {
     pub current: UnsafeCell<Thread>,
@@ -19,10 +24,11 @@ pub(crate) struct Executor {
 }
 
 impl Executor {
-    pub fn new() -> Executor {
-        let thread = Thread::for_os_thread();
+    pub fn new(sq: Arc<SharedQueue>) -> Executor {
+        let thread = Thread::for_os_thread(sq);
         let current = UnsafeCell::new(thread.clone());
         let all = RefCell::new(VecDeque::from([thread]));
+
         Executor {
             current,
             all,
@@ -55,14 +61,20 @@ impl Executor {
             new.status().set(Status::Waiting);
             unsafe { sys::switch_context(old.0 .0, new.0 .0) }
         }
+        dbg!()
     }
 
-    pub fn spawn<T, F>(&self, f: F, builder: Builder) -> io::Result<JoinHandle<T>>
+    pub fn spawn<T, F>(
+        &self,
+        f: F,
+        sq: Arc<SharedQueue>,
+        builder: Builder,
+    ) -> io::Result<JoinHandle<T>>
     where
         F: FnOnce() -> T + 'static,
         T: 'static,
     {
-        let handle = JoinHandle::new(f, builder)?;
+        let handle = JoinHandle::new(f, sq, builder)?;
         self.all.borrow_mut().push_back(handle.thread().clone());
         self.push(handle.thread().clone());
         Ok(handle)
@@ -83,7 +95,9 @@ impl Executor {
 
     pub fn unpark_all(&self) {
         for thread in &*self.all.borrow() {
-            println!("{:?}", thread.id());
+            dbg!();
+            thread.0.is_cancelled.set(true);
+            // println!("{:?}", thread.id());
             thread.unpark()
         }
     }
