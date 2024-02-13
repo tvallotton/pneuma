@@ -1,4 +1,4 @@
-use crate::sys::futex::{futex_wait, futex_wake};
+use pneuma::sys::futex::{futex_wait, futex_wake};
 use std::sync::atomic::{
     AtomicU32,
     Ordering::{Acquire, Relaxed, Release},
@@ -75,7 +75,7 @@ impl Mutex {
                 return state;
             }
 
-            crate::hint::spin_loop();
+            pneuma::hint::spin_loop();
             spin -= 1;
         }
     }

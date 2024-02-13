@@ -1,12 +1,11 @@
 use std::{
     io,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
-    time::SystemTime,
 };
 
 use pneuma::{reactor, syscall};
 
-use crate::reactor::{imp::Event, op, Reactor};
+use pneuma::reactor::{op, Reactor};
 
 #[cfg(target_os = "linux")]
 pub(crate) struct EventFd(OwnedFd);
@@ -15,6 +14,7 @@ pub(crate) struct EventFd(OwnedFd);
 pub(crate) struct EventFd(i32);
 
 impl EventFd {
+    #[cfg(target_os = "linux")]
     pub fn new() -> io::Result<Self> {
         let fd = syscall!(eventfd, 0, 0)?;
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
@@ -27,14 +27,8 @@ impl EventFd {
     }
 
     pub fn wake(&self) -> io::Result<()> {
-        let buf = 1u64.to_ne_bytes();
-        reactor::op::write(self, &buf)?;
+        reactor::op::emit_uevent(self.0);
         Ok(())
-    }
-
-    pub fn register_multishot(&self, reactor: &Reactor) -> io::Result<()> {
-        let event = op::readable_multishot(self, 0);
-        reactor.push(event)
     }
 }
 

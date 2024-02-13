@@ -1,6 +1,6 @@
 use std::{any::Any, io, marker::PhantomData, panic::resume_unwind, sync::Arc};
 
-use crate::runtime::SharedQueue;
+use pneuma::runtime::SharedQueue;
 
 use super::{builder::Builder, repr_context::Lifecycle, Context, Thread};
 

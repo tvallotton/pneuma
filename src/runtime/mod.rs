@@ -1,7 +1,7 @@
+use std::cell::Cell;
 use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::{cell::Cell, mem};
 
 // use pneuma::reactor::Reactor;
 use executor::Executor;
@@ -36,9 +36,9 @@ impl Runtime {
     #[rustfmt::skip]
     pub(crate) fn new() -> io::Result<Self> {
         let polls         = Cell::new(0);
-        let reactor       = Reactor::new()?;
         let signal_stack = SignalStack::new()?;
-        let shared_queue  = SharedQueue::new(&reactor)?;
+        let shared_queue  = SharedQueue::new()?;
+        let reactor       = Reactor::new(shared_queue.clone())?;
         let executor      = Executor::new(shared_queue.clone());
 
         let inner = InnerRuntime {
@@ -56,32 +56,28 @@ impl Runtime {
 
     pub(crate) fn shutdown(self) {
         while self.executor.total_threads() > 1 {
-            dbg!();
             self.executor.unpark_all();
-            dbg!();
             pneuma::thread::yield_now();
-            dbg!();
         }
-        dbg!()
     }
 
     #[inline]
     pub fn poll_reactor(&self) -> io::Result<()> {
         let mut queue = self.shared_queue.queue.lock().unwrap();
-
+        dbg!(queue.is_empty());
         while let Some(waker) = queue.pop_front() {
             dbg!();
             unsafe { waker.local_wake() };
         }
+        drop(queue);
 
         if self.executor.is_empty() {
-            // we purposefully block while holding the lock
-            // so other threads will know we are blocking
-            self.reactor.submit_and_wait()
+            self.shared_queue.sleep(|| self.reactor.submit_and_wait())?;
         } else {
-            drop(queue);
-            self.reactor.submit_and_yield()
+            self.reactor.submit_and_yield()?;
         }
+        dbg!(self.executor.is_empty());
+        Ok(())
     }
 
     /// Periodically poll the reactor
@@ -96,8 +92,9 @@ impl Runtime {
 
     pub fn park(self) {
         self.poll().unwrap();
-
+        dbg!();
         if let Some(next) = self.executor.pop() {
+            dbg!();
             self.executor.switch_to(next);
         }
         dbg!();

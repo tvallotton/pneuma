@@ -5,8 +5,7 @@ use std::{
 
 use io_uring::squeue;
 
-use crate::thread::Thread;
-
+#[track_caller]
 pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     let rt = pneuma::runtime::current();
     let thread = rt.executor.current();
@@ -14,10 +13,10 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     rt.reactor.push(sqe)?;
     let start = std::time::Instant::now();
     loop {
-        if thread.is_cancelled() {
+        if dbg!(thread.is_cancelled()) {
             return Err(Error::from_raw_os_error(libc::ECANCELED));
         }
-
+        dbg!();
         let Some(io_result) = thread.io_result().take() else {
             dbg!(std::panic::Location::caller());
             dbg!(pneuma::thread::park());

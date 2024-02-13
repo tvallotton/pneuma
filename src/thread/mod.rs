@@ -117,19 +117,19 @@
 //! thread to exit. When writing applications using `pneuma`, one should be careful not to write
 //! infinite loops that do not exit on cancellation.
 //!
-//! [channels]: crate::sync::mpsc
+//! [channels]: pneuma::sync::mpsc
 //! [`join`]: JoinHandle::join
-//! [`Result`]: crate::result::Result
-//! [`Ok`]: crate::result::Result::Ok
-//! [`Err`]: crate::result::Result::Err
+//! [`Result`]: pneuma::result::Result
+//! [`Ok`]: pneuma::result::Result::Ok
+//! [`Err`]: pneuma::result::Result::Err
 //! [`thread::current`]: current
 //! [`thread::Result`]: Result
 //! [`unpark`]: Thread::unpark
 //! [`thread::park_timeout`]: park_timeout
-//! [`Cell`]: crate::cell::Cell
-//! [`RefCell`]: crate::cell::RefCell
+//! [`Cell`]: pneuma::cell::Cell
+//! [`RefCell`]: pneuma::cell::RefCell
 //! [`with`]: LocalKey::with
-//! [`thread_local!`]: crate::thread_local
+//! [`thread_local!`]: pneuma::thread_local
 
 pub(crate) use context::Context;
 pub use join_handle::JoinHandle;
@@ -145,7 +145,7 @@ pub(crate) use stack::Stack;
 pub mod repr_context;
 pub use globals::current;
 
-use crate::{
+use pneuma::{
     runtime::{self, SharedQueue},
     sys,
 };
@@ -175,12 +175,13 @@ where
 /// in the second call returning immediately.
 ///
 /// Note that is the caller's responsibility to schedule a call to [`Thread::unpark`]. Not doing so
-/// may result in this thread not being scheduled for an indefinite amount of time. Spurious wake ups
+/// may result in this thread not being scheduled for an indefinite amount of time. Spurious wakeups
 /// cannot be relied on.
 ///
 /// See also [`pneuma::thread::yield_now()`] for a function that yields once cooperatively and reschedules the
 /// thread immediately.
 pub fn park() {
+    dbg!();
     runtime::current().park();
     dbg!();
 }
@@ -371,15 +372,11 @@ impl Thread {
         self.0.is_cancelled.get()
     }
 
-    pub fn into_context(self) -> Context {
+    pub(crate) fn into_context(self) -> Context {
         unsafe { transmute(self) }
     }
 
-    pub fn from_owned(cx: Context) -> Thread {
-        Thread(cx)
-    }
-
-    pub fn from_borrowed(cx: Context) -> Thread {
+    pub(crate) fn from_borrowed(cx: Context) -> Thread {
         let out = Thread(cx);
         forget(out.clone());
         out

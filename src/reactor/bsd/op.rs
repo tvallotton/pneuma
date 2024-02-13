@@ -9,7 +9,7 @@ use std::{
 
 use libc::kevent;
 
-use crate::{syscall};
+use pneuma::syscall;
 
 use super::event::submit;
 
@@ -76,4 +76,20 @@ fn event_id() -> usize {
         cell.set(value + 1);
         value
     })
+}
+
+pub fn emit_uevent(ident: i32) -> io::Result<()> {
+    let mut event = ZEROED;
+    event.ident = ident as _;
+    event.flags = libc::EV_ADD;
+    event.filter = libc::EVFILT_USER;
+    todo!();
+}
+
+pub fn readable_multishot(ident: i32) -> libc::kevent {
+    let mut event = ZEROED;
+    event.ident = ident as _;
+    event.flags = libc::EV_ADD;
+    event.filter = libc::EVFILT_USER;
+    event
 }

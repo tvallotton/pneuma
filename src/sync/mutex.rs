@@ -1,4 +1,4 @@
-use pneuma::thread::{current, park, Thread};
+use pneuma::thread::{current, park};
 use std::{
     collections::VecDeque,
     fmt::{self, Debug, Display, Formatter},
@@ -7,7 +7,7 @@ use std::{
     task::Waker,
 };
 
-use crate::thread::yield_now;
+use pneuma::thread::yield_now;
 
 /// A nonblocking `Mutex`-like type.
 ///

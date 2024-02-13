@@ -1,15 +1,23 @@
 use std::{
-    mem::{transmute, ManuallyDrop},
-    sync::atomic::Ordering,
+    mem::transmute,
+    sync::{atomic::Ordering, Arc},
 };
 
 use pneuma::thread::{Context, Thread};
+
+use pneuma::runtime::SharedQueue;
 
 pub(crate) struct ThinWaker(Context);
 
 impl ThinWaker {
     pub fn wake_by_ref(&self) {
-        self.0.shared_queue.send(self.clone()).unwrap();
+        self.clone().wake()
+    }
+
+    pub fn wake(self) {
+        let shared_queue: &'static Arc<SharedQueue> = unsafe { transmute(&self.0.shared_queue) };
+        dbg!();
+        shared_queue.send(self).unwrap();
     }
 
     // Must be called from the same thread

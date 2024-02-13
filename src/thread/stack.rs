@@ -1,8 +1,7 @@
 use std::io;
-use std::ops::RangeBounds;
 use std::{mem::zeroed, os::raw::c_void, ptr::null_mut};
 
-use crate::syscall;
+use pneuma::syscall;
 
 #[repr(C)]
 pub(crate) struct Stack {

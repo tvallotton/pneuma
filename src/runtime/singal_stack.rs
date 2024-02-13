@@ -1,4 +1,4 @@
-use crate::{syscall, thread::Stack};
+use pneuma::{syscall, thread::Stack};
 
 use std::{io, mem::zeroed, ptr::null_mut};
 
@@ -56,7 +56,6 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
     } else {
         println!("Segmentation fault");
     }
-    std::process::abort();
 }
 
 impl Drop for SignalStack {

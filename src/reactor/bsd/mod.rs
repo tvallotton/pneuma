@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{syscall, thread::Thread};
+use pneuma::{syscall, thread::Thread};
 
 mod event;
 pub mod op;

@@ -1,5 +1,5 @@
 use std::{
-    io::{self, ErrorKind},
+    io::{self},
     os::fd::AsRawFd,
     time::Duration,
 };
@@ -47,8 +47,8 @@ pub fn readable(fd: &impl AsRawFd, flags: u32) -> io::Result<usize> {
 }
 
 #[inline]
-pub fn readable_multishot(fd: &impl AsRawFd, flags: u32) -> Event {
-    opcode::PollAdd::new(Fd(fd.as_raw_fd()), flags)
+pub fn readable_multishot(fd: &impl AsRawFd) -> Event {
+    opcode::PollAdd::new(Fd(fd.as_raw_fd()), libc::POLLIN as _)
         .multi(true)
         .build()
         .user_data(0)

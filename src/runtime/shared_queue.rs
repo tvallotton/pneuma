@@ -1,32 +1,25 @@
-use pneuma::net::unix::pipe::{pipe, Receiver, Sender};
-use pneuma::sync::Mutex;
-use pneuma::thread::Thread;
-use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::io::{self, Read, Write};
-use std::mem::transmute;
+use std::io::{self};
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::thread::ThreadId;
 
-use crate::future::thin_waker::ThinWaker;
-use crate::net::linux::EventFd;
-use crate::reactor::Reactor;
+use pneuma::future::thin_waker::ThinWaker;
+use pneuma::net::linux::EventFd;
+use pneuma::reactor::Reactor;
 
 pub struct SharedQueue {
-    eventfd: EventFd,
-    is_sleeping: AtomicBool,
+    pub eventfd: EventFd,
+    pub is_sleeping: AtomicBool,
     pub queue: std::sync::Mutex<VecDeque<ThinWaker>>,
 }
 
 impl SharedQueue {
-    pub fn new(reactor: &Reactor) -> io::Result<Arc<Self>> {
-        let thread_id = std::thread::current().id();
+    pub fn new() -> io::Result<Arc<Self>> {
+        let _thread_id = std::thread::current().id();
         let queue = std::sync::Mutex::default();
         let is_sleeping = AtomicBool::new(false);
         let eventfd = EventFd::new()?;
-
-        eventfd.register_multishot(&reactor)?;
         let queue = SharedQueue {
             eventfd,
             is_sleeping,
@@ -37,9 +30,13 @@ impl SharedQueue {
     }
 
     pub fn send(&self, waker: ThinWaker) -> io::Result<()> {
-        self.queue.lock().unwrap().push_back(waker);
-
+        {
+            self.queue.lock().unwrap().push_back(waker);
+        }
+        dbg!();
         if self.is_sleeping() {
+            dbg!();
+
             self.eventfd.wake()?;
         }
 
@@ -49,5 +46,12 @@ impl SharedQueue {
     #[inline]
     fn is_sleeping(&self) -> bool {
         self.is_sleeping.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn sleep<T>(&self, f: impl FnOnce() -> T) -> T {
+        self.is_sleeping.store(true, Ordering::Release);
+        let out = f();
+        self.is_sleeping.store(false, Ordering::Release);
+        out
     }
 }

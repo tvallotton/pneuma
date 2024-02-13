@@ -9,7 +9,7 @@ use std::{
 
 use pneuma::sys;
 
-use crate::{runtime::SharedQueue, thread::Thread};
+use pneuma::{runtime::SharedQueue, thread::Thread};
 
 use super::{
     builder::Builder,
@@ -58,10 +58,6 @@ impl Context {
         }
 
         current.exit();
-    }
-
-    pub fn as_thread(&self) -> &Thread {
-        unsafe { std::mem::transmute(self) }
     }
 }
 

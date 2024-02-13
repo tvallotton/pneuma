@@ -3,7 +3,7 @@ use std::{
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
 };
 
-use crate::syscall;
+use pneuma::syscall;
 
 pub struct Sender {
     fd: OwnedFd,

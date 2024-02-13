@@ -4,8 +4,8 @@
 // #[cfg(target_arch = "aarch64")]
 // mod aarch64;
 
-use crate::thread::ReprContext;
 use pneuma::thread::Context;
+use pneuma::thread::ReprContext;
 use std::ptr::NonNull;
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]

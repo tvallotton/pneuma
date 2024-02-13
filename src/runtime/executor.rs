@@ -3,16 +3,15 @@ use pneuma::thread::Thread;
 use pneuma::thread::Stack;
 use std::cell::UnsafeCell;
 use std::io;
-use std::os::fd::OwnedFd;
+
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use pneuma::thread::Builder;
 use pneuma::thread::JoinHandle;
 use std::{cell::RefCell, collections::VecDeque};
 
-use crate::sys;
-use crate::thread::repr_context::Status;
+use pneuma::sys;
+use pneuma::thread::repr_context::Status;
 
 use super::SharedQueue;
 
@@ -56,8 +55,8 @@ impl Executor {
         let id = new.id();
 
         let old = self.replace(new.clone());
-
-        if id != old.id() {
+        dbg!();
+        if dbg!(id != old.id()) {
             new.status().set(Status::Waiting);
             unsafe { sys::switch_context(old.0 .0, new.0 .0) }
         }

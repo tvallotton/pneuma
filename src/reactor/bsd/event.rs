@@ -31,10 +31,10 @@ where
 pub fn wait(mut ev: Event) -> io::Result<()> {
     let runtime = pneuma::runtime::current();
     let thread = runtime.executor.current();
-    ev.udata = unsafe { transmute(thread) };
     if thread.is_cancelled() {
         return Err(Error::from_raw_os_error(libc::ECANCELED));
     }
+    ev.udata = unsafe { transmute(thread) };
     runtime.reactor.push(ev)?;
     runtime.park();
 

@@ -2,7 +2,7 @@ use std::{io, mem::transmute, time::Duration};
 
 use io_uring::IoUring;
 
-use crate::thread::Thread;
+use pneuma::thread::Thread;
 
 pub mod event;
 pub mod op;
@@ -59,6 +59,7 @@ impl Reactor {
         for cqe in self.io_uring.completion() {
             let option: Option<Thread> = unsafe { transmute(cqe.user_data()) };
             let Some(thread) = option else {
+                println!("YEEEES");
                 continue;
             };
 

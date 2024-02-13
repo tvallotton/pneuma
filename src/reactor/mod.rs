@@ -1,6 +1,8 @@
 use std::{
-    cell::{RefCell, UnsafeCell},
+    cell::RefCell,
     io,
+    os::fd::AsRawFd,
+    sync::{atomic::Ordering, Arc},
 };
 
 #[cfg(any(
@@ -16,6 +18,8 @@ pub use imp::op;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use linux as imp;
+
+use pneuma::runtime::SharedQueue;
 
 #[cfg(any(
     target_os = "macos",
@@ -33,8 +37,11 @@ pub(crate) mod linux;
 pub struct Reactor(RefCell<imp::Reactor>);
 
 impl Reactor {
-    pub fn new() -> io::Result<Reactor> {
-        Ok(Reactor(RefCell::new(imp::Reactor::new()?)))
+    pub fn new(shared_queue: Arc<SharedQueue>) -> io::Result<Reactor> {
+        let reactor = RefCell::new(imp::Reactor::new()?);
+        let reactor = Reactor(reactor);
+        reactor.setup_crossthread_wakups(shared_queue)?;
+        Ok(reactor)
     }
 
     pub fn push(&self, ev: imp::Event) -> io::Result<()> {
@@ -47,5 +54,10 @@ impl Reactor {
 
     pub fn submit_and_wait(&self) -> io::Result<()> {
         borrow_mut!(self.0).submit_and_wait()
+    }
+
+    fn setup_crossthread_wakups(&self, shared_queue: Arc<SharedQueue>) -> io::Result<()> {
+        let event = op::readable_multishot(shared_queue.eventfd.as_raw_fd());
+        self.push(event)
     }
 }
