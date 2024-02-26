@@ -47,9 +47,15 @@ pub fn readable(fd: &impl AsRawFd, flags: u32) -> io::Result<usize> {
 }
 
 #[inline]
-pub fn readable_multishot(fd: &impl AsRawFd) -> Event {
-    opcode::PollAdd::new(Fd(fd.as_raw_fd()), libc::POLLIN as _)
+pub fn readable_multishot(fd: i32) -> Event {
+    opcode::PollAdd::new(Fd(fd), libc::POLLIN as _)
         .multi(true)
         .build()
         .user_data(0)
+}
+
+#[inline]
+pub fn emit_uevent(fd: &impl AsRawFd) -> io::Result<()> {
+    write(fd, &1u64.to_ne_bytes())?;
+    Ok(())
 }

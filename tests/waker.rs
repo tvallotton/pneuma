@@ -1,6 +1,10 @@
-use std::task::Waker;
+#![feature(local_waker)]
 
 use pneuma::thread::{park, spawn, yield_now};
+use std::task::Waker;
+
+#[test]
+fn single_threaded_wakup() {}
 
 #[ignore]
 #[test]

@@ -53,14 +53,13 @@ impl Executor {
     #[inline]
     pub fn switch_to(&self, new: Thread) {
         let id = new.id();
-
+        
         let old = self.replace(new.clone());
-        dbg!();
-        if dbg!(id != old.id()) {
+
+        if id != old.id() {
             new.status().set(Status::Waiting);
             unsafe { sys::switch_context(old.0 .0, new.0 .0) }
         }
-        dbg!()
     }
 
     pub fn spawn<T, F>(

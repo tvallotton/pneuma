@@ -27,7 +27,7 @@ impl EventFd {
     }
 
     pub fn wake(&self) -> io::Result<()> {
-        reactor::op::emit_uevent(self.0);
+        reactor::op::emit_uevent(self.0.as_raw_fd())?;
         Ok(())
     }
 }

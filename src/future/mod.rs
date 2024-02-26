@@ -10,8 +10,9 @@ use crate::thread::JoinHandle;
 pub(crate) mod thin_waker;
 mod waker;
 
-/// awaits a future asynchronously
-///
+/// awaits a future asynchronously without blocking the thread
+/// 
+/// 
 /// # Example
 /// ```ignore
 ///

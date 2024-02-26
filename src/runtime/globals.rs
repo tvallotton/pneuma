@@ -27,6 +27,5 @@ impl Drop for OnDrop {
         RUNTIME.with(|rt| unsafe {
             rt.get().read().shutdown();
         });
-        println!("{}", std::backtrace::Backtrace::force_capture());
     }
 }
