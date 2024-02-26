@@ -1,11 +1,11 @@
-use std::{
-    io,
-    os::fd::{AsRawFd, FromRawFd, OwnedFd},
-};
+use std::{io, os::fd::AsRawFd};
 
-use pneuma::{reactor, syscall};
+use pneuma::reactor;
 
-use pneuma::reactor::{op, Reactor};
+#[cfg(target_os = "linux")]
+use pneuma::syscall;
+#[cfg(target_os = "linux")]
+use std::os::fd::{FromRawFd, OwnedFd};
 
 #[cfg(target_os = "linux")]
 pub(crate) struct EventFd(OwnedFd);

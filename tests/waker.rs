@@ -1,5 +1,3 @@
-#![feature(local_waker)]
-
 use pneuma::thread::{park, spawn, yield_now};
 use std::task::Waker;
 
@@ -21,7 +19,6 @@ fn cross_thread_wakup() {
 
         dbg!();
     });
-    return;
 
     handle.join();
 }

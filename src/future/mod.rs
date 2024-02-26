@@ -1,11 +1,11 @@
 use std::{
-    future::{Future, IntoFuture},
+    future::{Future},
     task::{Context, Poll, Waker},
 };
 
 use pneuma::thread::park;
 
-use crate::thread::JoinHandle;
+
 
 pub(crate) mod thin_waker;
 mod waker;

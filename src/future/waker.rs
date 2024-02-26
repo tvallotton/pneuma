@@ -1,11 +1,10 @@
 use pneuma::thread::Thread;
 use std::{
     mem::transmute,
-    ptr::drop_in_place,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 
-use pneuma::thread::ReprContext;
+
 
 use super::thin_waker::ThinWaker;
 

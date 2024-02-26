@@ -7,3 +7,5 @@ services:
     volumes:
       - ./:/home/app
       - /home/app/target
+    ports: 
+      - 8000:8000

@@ -1,9 +1,4 @@
-use std::{
-    cell::RefCell,
-    io,
-    os::fd::AsRawFd,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{cell::RefCell, io, os::fd::AsRawFd, sync::Arc};
 
 #[cfg(any(
     target_os = "macos",

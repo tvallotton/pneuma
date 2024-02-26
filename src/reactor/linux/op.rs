@@ -55,7 +55,7 @@ pub fn readable_multishot(fd: i32) -> Event {
 }
 
 #[inline]
-pub fn emit_uevent(fd: &impl AsRawFd) -> io::Result<()> {
-    write(fd, &1u64.to_ne_bytes())?;
+pub fn emit_uevent(fd: i32) -> io::Result<()> {
+    write(&fd, &1u64.to_ne_bytes())?;
     Ok(())
 }

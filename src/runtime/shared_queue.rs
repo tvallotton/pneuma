@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use pneuma::future::thin_waker::ThinWaker;
 use pneuma::net::linux::EventFd;
-use pneuma::reactor::Reactor;
+
 
 pub struct SharedQueue {
     pub eventfd: EventFd,
