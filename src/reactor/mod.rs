@@ -29,8 +29,8 @@ pub(crate) mod bsd;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) mod linux;
 
-#[cfg(not(target_os = "linux"))]
-pub(crate) mod non_linux;
+// #[cfg(not(target_os = "linux"))]
+// pub(crate) mod non_linux;
 
 pub struct Reactor(RefCell<imp::Reactor>);
 

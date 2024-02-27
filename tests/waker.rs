@@ -2,23 +2,20 @@ use pneuma::thread::{park, spawn, yield_now};
 use std::task::Waker;
 
 #[test]
-fn single_threaded_wakup() {}
+fn single_threaded_wakup() {
+    let handle = pneuma::thread::current();
+    spawn(|| {
+        let waker: Waker = handle.into();
+        waker.wake();
+    });
+    park();
+}
 
-#[ignore]
 #[test]
 fn cross_thread_wakup() {
-    let handle = spawn(|| {
-        dbg!();
-        park();
-    });
-    yield_now();
-    let waker: Waker = handle.thread().clone().into();
+    let waker: Waker = pneuma::thread::current().clone().into();
     std::thread::spawn(move || {
-        dbg!();
         waker.wake();
-
-        dbg!();
     });
-
-    handle.join();
+    park()
 }

@@ -7,7 +7,6 @@ use std::sync::Arc;
 use pneuma::future::thin_waker::ThinWaker;
 use pneuma::net::linux::EventFd;
 
-
 pub struct SharedQueue {
     pub eventfd: EventFd,
     pub is_sleeping: AtomicBool,
@@ -33,13 +32,9 @@ impl SharedQueue {
         {
             self.queue.lock().unwrap().push_back(waker);
         }
-        dbg!();
         if self.is_sleeping() {
-            dbg!();
-
             self.eventfd.wake()?;
         }
-
         Ok(())
     }
 

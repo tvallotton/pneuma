@@ -18,7 +18,8 @@ mod waker;
 ///
 /// let value = wait(async {
 ///     10
-/// })
+/// });
+/// 
 /// assert!(value, 10);
 /// ```
 pub fn wait<F: Future>(f: F) -> F::Output {

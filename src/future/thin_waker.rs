@@ -15,9 +15,7 @@ impl ThinWaker {
     }
 
     pub fn wake(self) {
-        let shared_queue: &'static Arc<SharedQueue> = unsafe { transmute(&self.0.shared_queue) };
-        dbg!();
-        shared_queue.send(self).unwrap();
+        self.0.shared_queue.clone().send(self).unwrap();
     }
 
     // Must be called from the same thread
