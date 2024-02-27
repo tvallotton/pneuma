@@ -33,7 +33,6 @@ pub(crate) struct ReprContext {
     pub atomic_refcount: AtomicU64,
     pub join_waker: Cell<Option<Thread>>,
     pub shared_queue: Arc<SharedQueue>,
-    pub is_cancelled: Cell<bool>,
     #[cfg(any(target_os = "linux", target_os = "android"))]
     pub io_result: Cell<Option<i32>>,
     pub fun: *mut dyn FnMut(*mut ()),
@@ -91,7 +90,6 @@ impl ReprContext {
                 shared_queue: sq,
                 #[cfg(any(target_os = "linux", target_os = "android"))]
                 io_result: Cell::new(None),
-                is_cancelled: Cell::default(),
                 lifecycle: Lifecycle::New.into(),
                 layout,
                 out,

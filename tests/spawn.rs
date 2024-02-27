@@ -67,11 +67,22 @@ fn name() {
 
 #[test]
 fn is_cancelled() {
-    pneuma::thread::spawn(|| {
+    let main = pneuma::thread::current();
+    pneuma::thread::spawn(move || {
         while dbg!(!pneuma::thread::is_cancelled()) {
+            dbg!(&main);
             pneuma::thread::yield_now();
         }
-
     });
-    yield_now()
+
+    // changing this to ::yield_now() causes a segfault
+    pneuma::thread::yield_now()
+}
+
+#[test]
+#[should_panic]
+fn panic_with_unjoined_task() {
+    pneuma::thread::spawn(|| {});
+    pneuma::thread::yield_now();
+    panic!();
 }

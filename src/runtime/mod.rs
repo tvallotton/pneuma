@@ -28,18 +28,20 @@ pub(crate) struct InnerRuntime {
     pub executor: Executor,
     pub reactor: Reactor,
     pub shared_queue: Arc<SharedQueue>,
-
+    pub shutting_down: Cell<bool>,
     pub signal_stack: SignalStack,
 }
 
 impl Runtime {
     #[rustfmt::skip]
     pub(crate) fn new() -> io::Result<Self> {
+        
         let polls         = Cell::new(0);
         let signal_stack = SignalStack::new()?;
         let shared_queue  = SharedQueue::new()?;
         let reactor       = Reactor::new(shared_queue.clone())?;
         let executor      = Executor::new(shared_queue.clone());
+let shutting_down=Cell::new(false);
 
         let inner = InnerRuntime {
             executor,
@@ -47,6 +49,8 @@ impl Runtime {
             reactor,
             shared_queue,
             signal_stack,
+            shutting_down
+            
         };
 
         let rt = Runtime(Rc::new(inner));
@@ -55,6 +59,7 @@ impl Runtime {
     }
 
     pub(crate) fn shutdown(self) {
+        self.shutting_down.set(true);
         while self.executor.total_threads() > 1 {
             self.executor.unpark_all();
             pneuma::thread::yield_now();

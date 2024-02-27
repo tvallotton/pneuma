@@ -93,7 +93,6 @@ impl Executor {
 
     pub fn unpark_all(&self) {
         for thread in dbg!(&*self.all.borrow()) {
-            thread.0.is_cancelled.set(true);
             thread.unpark()
         }
     }

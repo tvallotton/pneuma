@@ -13,7 +13,7 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     rt.reactor.push(sqe)?;
     let start = std::time::Instant::now();
     loop {
-        if dbg!(thread.is_cancelled()) {
+        if rt.shutting_down.get() {
             return Err(Error::from_raw_os_error(libc::ECANCELED));
         }
         dbg!();

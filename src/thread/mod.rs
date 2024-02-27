@@ -236,8 +236,7 @@ pub struct Thread(pub(crate) Context);
 impl Debug for Thread {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Thread")
-            .field("id", &self.id())
-            .field("is_cancelled", &self.is_cancelled())
+            .field("id", &(self.id().0 as *const ()))
             .finish()
     }
 }
@@ -375,10 +374,6 @@ impl Thread {
         &self.0.io_result
     }
 
-    pub(crate) fn is_cancelled(&self) -> bool {
-        self.0.is_cancelled.get()
-    }
-
     pub(crate) fn into_context(self) -> Context {
         unsafe { transmute(self) }
     }
@@ -413,7 +408,7 @@ impl Thread {
 /// Returns whether the currently running
 /// task is cancelled and should exit cooperatively.
 pub fn is_cancelled() -> bool {
-    dbg!(current()).0.is_cancelled.get()
+    pneuma::runtime::current().shutting_down.get()
 }
 
 impl Clone for Thread {

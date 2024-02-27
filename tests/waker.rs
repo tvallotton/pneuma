@@ -20,3 +20,8 @@ fn cross_thread_wakup() {
     });
     park()
 }
+
+#[test]
+fn cross_thread_waker_drop_after_gthread_exit() {
+    
+}
