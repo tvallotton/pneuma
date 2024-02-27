@@ -136,6 +136,7 @@ pub use join_handle::JoinHandle;
 pub(crate) use repr_context::ReprContext;
 use std::{
     cell::Cell,
+    fmt::Debug,
     mem::{forget, transmute},
     sync::{atomic::Ordering, Arc},
 };
@@ -181,9 +182,7 @@ where
 /// See also [`pneuma::thread::yield_now()`] for a function that yields once cooperatively and reschedules the
 /// thread immediately.
 pub fn park() {
-    dbg!();
     runtime::current().park();
-    dbg!();
 }
 
 /// Cooperatively gives up a timeslice to the pneuma scheduler.
@@ -229,11 +228,19 @@ pub fn park() {
 pub fn yield_now() {
     current().unpark();
     park();
-    dbg!();
 }
 
 #[repr(transparent)]
 pub struct Thread(pub(crate) Context);
+
+impl Debug for Thread {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Thread")
+            .field("id", &self.id())
+            .field("is_cancelled", &self.is_cancelled())
+            .finish()
+    }
+}
 
 /// A unique identifier for a running thread.
 ///
@@ -406,7 +413,7 @@ impl Thread {
 /// Returns whether the currently running
 /// task is cancelled and should exit cooperatively.
 pub fn is_cancelled() -> bool {
-    current().0.is_cancelled.get()
+    dbg!(current()).0.is_cancelled.get()
 }
 
 impl Clone for Thread {

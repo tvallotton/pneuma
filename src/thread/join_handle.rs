@@ -96,7 +96,7 @@ impl<T> JoinHandle<T> {
                 Lifecycle::Taken | Lifecycle::OsThread => unreachable!(),
                 Lifecycle::New | Lifecycle::Running => {
                     self.0 .0.join_waker.set(Some(pneuma::thread::current()));
-                    dbg!(pneuma::thread::park());
+                    pneuma::thread::park();
                 }
                 Lifecycle::Finished => unsafe {
                     self.0 .0.lifecycle.set(Lifecycle::Taken);

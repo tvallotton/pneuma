@@ -15,6 +15,7 @@ fn single_threaded_wakup() {
 fn cross_thread_wakup() {
     let waker: Waker = pneuma::thread::current().clone().into();
     std::thread::spawn(move || {
+        waker.clone().wake_by_ref();
         waker.wake();
     });
     park()

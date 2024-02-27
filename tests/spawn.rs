@@ -53,3 +53,25 @@ fn backtrace() {
     })
     .join();
 }
+
+#[test]
+fn name() {
+    pneuma::thread::Builder::new()
+        .name("test-thread".into())
+        .spawn(|| {
+            assert_eq!(pneuma::thread::current().name(), Some("test-thread"));
+        })
+        .unwrap()
+        .join();
+}
+
+#[test]
+fn is_cancelled() {
+    pneuma::thread::spawn(|| {
+        while dbg!(!pneuma::thread::is_cancelled()) {
+            pneuma::thread::yield_now();
+        }
+
+    });
+    yield_now()
+}

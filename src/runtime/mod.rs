@@ -84,7 +84,7 @@ impl Runtime {
     pub fn poll(&self) -> io::Result<()> {
         let polls = (self.polls.get() + 1) % 61;
         self.polls.set(polls);
-        if polls == 0 || dbg!(self.executor.is_empty()) {
+        if polls == 0 || self.executor.is_empty() {
             return self.poll_reactor();
         }
         Ok(())
@@ -92,12 +92,9 @@ impl Runtime {
 
     pub fn park(self) {
         self.poll().unwrap();
-        dbg!();
         if let Some(next) = self.executor.pop() {
-            dbg!();
             self.executor.switch_to(next);
         }
-        dbg!();
     }
 
     pub(crate) fn spawn<T, F>(&self, f: F, builder: Builder) -> io::Result<JoinHandle<T>>

@@ -53,7 +53,7 @@ impl Executor {
     #[inline]
     pub fn switch_to(&self, new: Thread) {
         let id = new.id();
-        
+
         let old = self.replace(new.clone());
 
         if id != old.id() {
@@ -92,10 +92,8 @@ impl Executor {
     }
 
     pub fn unpark_all(&self) {
-        for thread in &*self.all.borrow() {
-            dbg!();
+        for thread in dbg!(&*self.all.borrow()) {
             thread.0.is_cancelled.set(true);
-            // println!("{:?}", thread.id());
             thread.unpark()
         }
     }
