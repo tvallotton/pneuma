@@ -136,6 +136,12 @@ impl Display for TryLockError {
     }
 }
 
+enum Status {
+    Unsubscribed,
+    Subscribed,
+    FirstInQueue,
+}
+
 impl<T> Mutex<T> {
     pub const fn new(value: T) -> Mutex<T> {
         let data = std::sync::Mutex::new(value);
@@ -144,19 +150,38 @@ impl<T> Mutex<T> {
     }
 
     pub fn lock(&self) -> MutexGuard<T> {
-        let mut subscribed = false;
+        let mut state = Status::Unsubscribed;
+
+        self.subscribe(&mut state);
+
         loop {
             if let Ok(guard) = self.try_lock() {
                 return guard;
             }
-            if !subscribed {
-                let mut queue = self.queue.lock().unwrap();
-                queue.push_back(current().into());
-                subscribed = true;
-            }
-            park();
-            dbg!();
+
+            self.subscribe(&mut state);
+            park()
         }
+    }
+
+    fn subscribe(&self, status: &mut Status) {
+        let mut queue;
+        match status {
+            Status::Subscribed => return,
+
+            Status::Unsubscribed => {
+                queue = self.queue.lock().unwrap();
+                if queue.is_empty() {
+                    *status = Status::FirstInQueue;
+                    return;
+                }
+            }
+            Status::FirstInQueue => {
+                queue = self.queue.lock().unwrap();
+            }
+        }
+        queue.push_back(current().into());
+        *status = Status::Subscribed;
     }
 
     pub fn get_mut(&mut self) -> &mut T {
@@ -181,10 +206,9 @@ impl<T> Mutex<T> {
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
         let Some(waker) = self.1.queue.lock().unwrap().pop_front() else {
-            unreachable!();
+            return;
         };
         waker.wake();
-        yield_now();
     }
 }
 

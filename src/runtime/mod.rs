@@ -69,9 +69,7 @@ let shutting_down=Cell::new(false);
     #[inline]
     pub fn poll_reactor(&self) -> io::Result<()> {
         let mut queue = self.shared_queue.queue.lock().unwrap();
-        dbg!(queue.is_empty());
-        while let Some(waker) = queue.pop_front() {
-            dbg!();
+        while let Some(waker) = queue.pop_front() {    
             unsafe { waker.local_wake() };
         }
         drop(queue);
@@ -81,7 +79,6 @@ let shutting_down=Cell::new(false);
         } else {
             self.reactor.submit_and_yield()?;
         }
-        dbg!(self.executor.is_empty());
         Ok(())
     }
 

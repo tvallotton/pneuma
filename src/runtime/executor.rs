@@ -56,8 +56,8 @@ impl Executor {
 
         let old = self.replace(new.clone());
 
+        new.status().set(Status::Waiting);
         if id != old.id() {
-            new.status().set(Status::Waiting);
             unsafe { sys::switch_context(old.0 .0, new.0 .0) }
         }
     }

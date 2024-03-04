@@ -82,7 +82,9 @@ fn is_cancelled() {
 #[test]
 #[should_panic]
 fn panic_with_unjoined_task() {
-    pneuma::thread::spawn(|| {});
+    pneuma::thread::spawn(|| {
+        pneuma::thread::yield_now();
+    });
     pneuma::thread::yield_now();
     panic!();
 }
