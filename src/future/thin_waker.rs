@@ -1,11 +1,6 @@
-use std::{
-    mem::transmute,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{mem::transmute, sync::atomic::Ordering};
 
 use pneuma::thread::{Context, Thread};
-
-use pneuma::runtime::SharedQueue;
 
 pub(crate) struct ThinWaker(Context);
 

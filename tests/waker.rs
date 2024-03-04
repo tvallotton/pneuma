@@ -1,4 +1,4 @@
-use pneuma::thread::{park, spawn, yield_now};
+use pneuma::thread::{park, spawn};
 use std::task::Waker;
 
 #[test]
@@ -22,6 +22,4 @@ fn cross_thread_wakup() {
 }
 
 #[test]
-fn cross_thread_waker_drop_after_gthread_exit() {
-    
-}
+fn cross_thread_waker_drop_after_gthread_exit() {}

@@ -1,5 +1,3 @@
-use std::{rc::Rc, time::Duration};
-
 use pneuma::{sync::Mutex, thread::yield_now};
 
 #[test]
@@ -89,7 +87,8 @@ fn poison() {
         let _guard = MUTEX.lock();
         panic!();
     })
-    .try_join();
+    .try_join()
+    .unwrap_err();
 
     MUTEX.lock();
 }

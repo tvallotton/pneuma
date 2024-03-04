@@ -1,7 +1,7 @@
 use pneuma::thread::{current, park};
 use std::{
     collections::VecDeque,
-    fmt::{self, Debug, Display, Formatter, Write},
+    fmt::{self, Debug, Display, Formatter},
     ops::{Deref, DerefMut},
     sync::PoisonError,
     task::Waker,
