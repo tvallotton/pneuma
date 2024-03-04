@@ -106,7 +106,7 @@
 //!
 //! ## Cancellation
 //!
-//! Like OS threads, green threads cannot forcibly be made to without leaking memory or
+//! Like OS threads, green threads cannot forcibly be made exit to without leaking memory or
 //! causing deadlocks. For this reason, the runtime will always wait for all threads to
 //! finish before exiting the program. This means that if a green thread is running an
 //! infinite loop, the program will never exit.
@@ -131,6 +131,7 @@
 //! [`with`]: LocalKey::with
 //! [`thread_local!`]: pneuma::thread_local
 
+use self::repr_context::{Lifecycle, Status};
 pub(crate) use context::Context;
 pub use join_handle::JoinHandle;
 pub(crate) use repr_context::ReprContext;
@@ -143,7 +144,6 @@ use std::{
 
 pub(crate) use stack::Stack;
 
-pub mod repr_context;
 pub use globals::current;
 
 use pneuma::{
@@ -152,12 +152,13 @@ use pneuma::{
 };
 
 pub use self::builder::Builder;
-use self::repr_context::{Lifecycle, Status};
+
 pub(crate) mod builder;
 pub(crate) mod context;
 pub(crate) mod globals;
 pub(crate) mod join_handle;
 pub(crate) mod registers;
+pub(crate) mod repr_context;
 pub(crate) mod stack;
 
 pub fn spawn<T, F>(f: F) -> JoinHandle<T>
@@ -275,7 +276,10 @@ impl Thread {
     /// used to cooperatively yield to the scheduler, while the [`unpark`] method
     /// reschedules the thread for execution.
     ///
-    /// This is the green thread analog of calling [`Waker::wake`].
+    /// This is the green thread analog of calling [`Waker::wake`]. Note that because
+    /// `Thread` does not implement `Send` or `Sync`, `unpark` cannot be called from
+    /// other threads. This constraint can be sidestepped by casting the `Thread`
+    /// into a `Waker`.
     ///
     /// See the [park documentation][park] for more details.
     ///

@@ -1,15 +1,13 @@
 use pneuma::thread::{current, park};
 use std::{
     collections::VecDeque,
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{self, Debug, Display, Formatter, Write},
     ops::{Deref, DerefMut},
     sync::PoisonError,
     task::Waker,
 };
 
-use pneuma::thread::yield_now;
-
-/// A nonblocking `Mutex`-like type.
+/// A nonblocking FIFO `Mutex`-like type.
 ///
 /// This type acts similarly to [`std::sync::Mutex`], with two major
 /// differences: [`lock`] is a yielding method, so does not block, and the lock
@@ -41,8 +39,7 @@ use pneuma::thread::yield_now;
 ///
 /// A common pattern is to wrap the `Arc<Mutex<...>>` in a struct that provides
 /// non-async methods for performing operations on the data within, and only
-/// lock the mutex inside these methods. The [mini-redis] example provides an
-/// illustration of this pattern.
+/// lock the mutex inside these methods.
 ///
 /// Additionally, when you _do_ want shared access to an IO resource, it is
 /// often better to spawn a task to manage the IO resource, and to use message
@@ -236,5 +233,15 @@ impl<'a, T: Display> Display for MutexGuard<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let value: &T = self;
         write!(f, "{}", value)
+    }
+}
+
+impl<T: Debug> Debug for Mutex<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Ok(data) = self.try_lock() {
+            f.debug_struct("Mutex").field("data", &data).finish()
+        } else {
+            f.debug_struct("Mutex").field("data", &"<locked>").finish()
+        }
     }
 }
