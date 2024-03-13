@@ -1,6 +1,6 @@
-# [build]
+[build]
+target = "aarch64-unknown-linux-gnu"
 # # features = ["io"]
-# target = "aarch64-unknown-linux-gnu"
 
 # # [target.aarch64-unknown-linux-gnu]
 # # runner = "valgrind --leak-check=full"

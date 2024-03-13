@@ -11,6 +11,7 @@
 
 #![allow(clippy::fn_to_numeric_cast)]
 #![allow(clippy::new_ret_no_self)]
+#![allow(clippy::len_without_is_empty)]
 
 extern crate self as pneuma;
 

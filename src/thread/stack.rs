@@ -19,7 +19,10 @@ impl Stack {
     #[allow(unused_mut)]
     pub fn new(mut size: usize) -> io::Result<Stack> {
         if size == 0 {
-            return unsafe { Ok(zeroed()) };
+            return Ok(Stack {
+                data: null_mut(),
+                size: 0,
+            });
         }
 
         let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
@@ -32,20 +35,16 @@ impl Stack {
         size += page_size() - size % page_size();
         size += page_size();
 
-        let data = unsafe {
-            libc::mmap(
-                null_mut(),
-                size,
-                libc::PROT_READ | libc::PROT_WRITE,
-                flags,
-                -1,
-                0,
-            )
-        };
+        let data = syscall!(
+            mmap,
+            null_mut(),
+            size,
+            libc::PROT_READ | libc::PROT_WRITE,
+            flags,
+            -1,
+            0,
+        )?;
 
-        if data as i64 == -1 {
-            return Err(io::Error::last_os_error());
-        }
         let stack = Stack { data, size };
         stack.protect_page()?;
         Ok(stack)
