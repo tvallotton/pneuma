@@ -35,14 +35,12 @@ impl Runtime {
             signal_stack,
         })
     }
-    
+
     fn park(&self) -> io::Result<()> {
         self.increment_tick()?;
 
         let res = self.executor.yield_to();
-        if res.err() {
-            
-        }
+        if res.err() {}
 
         todo!()
     }
@@ -53,8 +51,8 @@ impl Runtime {
             self.reactor.submit_and_yield()?;
         }
 
-        if prev % 512 == 0 {
-            self.executor.even_queues(); 
+        if prev % 1024 == 0 {
+            self.executor.even_queues();
         }
         Ok(())
     }
