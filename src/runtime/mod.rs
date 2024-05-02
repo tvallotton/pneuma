@@ -26,12 +26,36 @@ impl Runtime {
         let tick = AtomicU64::new(0);
         let executor = Executor::default();
         let reactor = Reactor::new()?;
-        let signal_stack = SignalStack::new();
+        let signal_stack = SignalStack::new()?;
+
+        Ok(Runtime {
+            tick,
+            executor,
+            reactor,
+            signal_stack,
+        })
+    }
+    
+    fn park(&self) -> io::Result<()> {
+        self.increment_tick()?;
+
+        let res = self.executor.yield_to();
+        if res.err() {
+            
+        }
 
         todo!()
     }
 
-    fn park(&self) -> io::Result<()> {
-        todo!()
+    pub fn increment_tick(&self) -> io::Result<()> {
+        let prev = self.tick.fetch_add(1, Release);
+        if prev % 61 == 0 {
+            self.reactor.submit_and_yield()?;
+        }
+
+        if prev % 512 == 0 {
+            self.executor.even_queues(); 
+        }
+        Ok(())
     }
 }

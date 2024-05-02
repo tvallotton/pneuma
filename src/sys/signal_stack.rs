@@ -92,7 +92,8 @@ extern "C" {
 
 fn backtrace_stderr(buffer: &[*mut libc::c_void]) {
     let size = buffer.len().try_into().unwrap_or_default();
-    unsafe { backtrace_symbols_fd(buffer.as_ptr(), size, libc::STDERR_FILENO) };
+
+    unsafe { libc::backtrace_symbols_fd(buffer.as_ptr(), size, libc::STDERR_FILENO) };
 }
 /// Unbuffered, unsynchronized writer to stderr.
 ///
@@ -101,14 +102,14 @@ pub struct Stderr;
 
 impl Write for Stderr {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        unsafe { libc::write(2, s.as_ptr().cast(), s.len()) };
+        unsafe { libc::write(libc::STDERR_FILENO, s.as_ptr().cast(), s.len()) };
         Ok(())
     }
 }
 
 /// Signal handler installed for SIGSEGV
 extern "C" fn print_stack_trace() {
-    const MAX_FRAMES: usize = 256;
+    const MAX_FRAMES: usize = 500;
     // Reserve data segment so we don't have to malloc in a signal handler, which might fail
     // in incredibly undesirable and unexpected ways due to e.g. the allocator deadlocking
     static mut STACK_TRACE: [*mut libc::c_void; MAX_FRAMES] = [ptr::null_mut(); MAX_FRAMES];
@@ -116,6 +117,7 @@ extern "C" fn print_stack_trace() {
         // Collect return addresses
         let depth = libc::backtrace(STACK_TRACE.as_mut_ptr(), MAX_FRAMES as i32);
         if depth == 0 {
+            raw_errln!("0");
             return;
         }
         &STACK_TRACE.as_slice()[0..(depth as _)]

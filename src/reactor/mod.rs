@@ -34,7 +34,7 @@ impl Reactor {
         todo!()
     }
 
-    fn submit_and_yield(&self) -> io::Result<()> {
+    pub fn submit_and_yield(&self) -> io::Result<()> {
         self.submit(Some(Duration::ZERO))
     }
 
