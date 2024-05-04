@@ -30,8 +30,16 @@ impl Reactor {
         let reactor = Mutex::new(reactor);
         Ok(Reactor { reactor })
     }
+
+    #[cfg(not(target_os = "linux"))]
     pub fn new() -> io::Result<Self> {
-        todo!()
+        let poll = mio::Poll::new()?;
+        let events = mio::Events::with_capacity(256);
+
+        let reactor = Inner { poll, events };
+
+        let reactor = Mutex::new(reactor);
+        Ok(Reactor { reactor })
     }
 
     pub fn submit_and_yield(&self) -> io::Result<()> {

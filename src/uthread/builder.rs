@@ -2,6 +2,8 @@ use std::io;
 
 use pneuma::uthread::JoinHandle;
 
+use crate::sys::stack::Stack;
+
 /// Thread factory, which can be used in order to configure the properties of
 /// a new uthread.
 ///
@@ -44,6 +46,7 @@ use pneuma::uthread::JoinHandle;
 pub struct Builder {
     pub(crate) name: Option<String>,
     pub(crate) stack_size: usize,
+    pub(crate) stack: Option<Stack>,
 }
 
 impl Builder {
@@ -69,6 +72,7 @@ impl Builder {
         Builder {
             name: None,
             stack_size: 32 * 1024,
+            stack: None,
         }
     }
 
@@ -162,6 +166,21 @@ impl Builder {
         Builder {
             name: std::thread::current().name().map(Into::into),
             stack_size: 0,
+            stack: None,
         }
+    }
+
+    pub(crate) fn set_stack(self, stack: Stack) -> Self {
+        Self {
+            stack: Some(stack),
+            ..self
+        }
+    }
+
+    pub(crate) fn stack(&mut self) -> io::Result<Stack> {
+        if let Some(stack) = self.stack.take() {
+            return Ok(stack);
+        }
+        Stack::new(self.stack_size)
     }
 }

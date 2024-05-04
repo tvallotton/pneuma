@@ -1,13 +1,9 @@
 use std::{
     io,
-    os::fd::AsRawFd,
-    sync::{atomic::AtomicU64, Mutex},
+    sync::atomic::{AtomicU64, Ordering::Release},
 };
 
-use crate::{
-    reactor::{self, Reactor},
-    sys::signal_stack::{self, SignalStack},
-};
+use crate::{reactor::Reactor, sys::signal_stack::SignalStack};
 pub(crate) use globals::current;
 
 use executor::Executor;
@@ -36,13 +32,19 @@ impl Runtime {
         })
     }
 
-    fn park(&self) -> io::Result<()> {
+    pub fn park(&self) -> io::Result<()> {
         self.increment_tick()?;
 
-        let res = self.executor.yield_to();
-        if res.err() {}
+        // NOTE: we might never return
+        // better not leave any variables undropped
+        let res = self.executor.context_switch();
 
-        todo!()
+        if res.is_err() {
+            self.reactor.submit_and_wait();
+            self.executor.context_switch();
+        }
+
+        Ok(())
     }
 
     pub fn increment_tick(&self) -> io::Result<()> {
@@ -51,9 +53,6 @@ impl Runtime {
             self.reactor.submit_and_yield()?;
         }
 
-        if prev % 1024 == 0 {
-            self.executor.even_queues();
-        }
         Ok(())
     }
 }

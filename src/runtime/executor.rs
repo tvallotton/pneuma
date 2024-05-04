@@ -1,82 +1,87 @@
-use std::{cell::RefCell, collections::VecDeque, sync::Mutex};
+use crossbeam_deque::{Stealer, Worker};
 
+use std::{collections::VecDeque, mem::replace, sync::Mutex};
 use thread_local::ThreadLocal;
 
 use crate::{sys::stack::Stack, uthread::UThread};
 
+const MAX_WORK_PER_WORKER: usize = 16;
+
 #[derive(Default)]
 pub(crate) struct Executor {
     pub current: ThreadLocal<Mutex<UThread>>,
-    pub local_queue: ThreadLocal<Mutex<VecDeque<UThread>>>,
-    pub global_queue: Mutex<VecDeque<UThread>>,
+    pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
+    pub stealers: ThreadLocal<Stealer<UThread>>,
+    pub injector: crossbeam_deque::Injector<UThread>,
+
     pub all: Mutex<VecDeque<UThread>>,
+
     pub _unused_stacks: Mutex<Vec<Stack>>,
 }
 
 impl Executor {
-    pub fn yield_to(&self) -> Result<(), ()> {
-        let Err(_) = self.yield_locally() else {
-            return Ok(());
-        };
+    pub fn context_switch(&self) -> Result<(), ()> {
+        let new = self.pop().ok_or(())?;
 
-        self.steal_work();
-        todo!()
-    }
+        let old = self.set_current(new.clone());
 
-    pub fn even_queues(&self) {
-        let mut queues: Vec<_> = self
-            .local_queue
-            .iter()
-            .filter_map(|queue| queue.try_lock().ok())
-            .collect();
+        old.cx.switch_to(new.cx);
 
-        let items = queues.iter().map(|queue| queue.len()).sum();
-
-        let min_len = items / queues.len();
-        let remainder = items % queues.len();
-
-        if target_len <= 50 {
-            return;
-        }
-
-        queues.sort_by_key(|queue| queue.len());
-
-        for recipient in 0..queues.len() {
-            let mut donor = recipient + 1;
-            let extra = (recipient < remainder) as usize;
-            while queues[recipient].len() < min_len + extra {
-                let Some(thread) = queues[donor].pop_back() else {
-                    donor += 1;
-                    break;
-                };
-                queues[recipient].push_back(thread);
-            }
-        }
-    }
-
-    fn steal_work(&mut self) -> Result<(), ()> {
-        let mut donor = self
-            .local_queue
-            .iter()
-            .filter_map(|queue| queue.try_lock().ok())
-            .max_by_key(|queue| queue.len())
-            .ok_or(())?;
-
-        let mut queue = self.local_queue.get().unwrap().lock().unwrap()
-        while  queue.len() >= donor.len() {
-            let Some(thread) = donor.pop_front() else {
-                break;
-            };
-            queue.push_back(thread);
-        }
-        
-        if queue.is_empty() {
-            return Err(())
-        } 
         Ok(())
     }
 
-    fn yield_locally(&mut self) -> Result<(), ()> {
-        todo!()
+    fn set_current(&self, with: UThread) -> UThread {
+        let mut current = self.current.get().unwrap().lock().unwrap();
+        replace(&mut *current, with)
+    }
+
+    fn pop(&self) -> Option<UThread> {
+        let worker = self.worker();
+
+        let thread = worker.pop();
+
+        if thread.is_some() {
+            return thread;
+        }
+
+        let thread = self
+            .injector
+            .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER)
+            .success();
+
+        if thread.is_some() {
+            return thread;
+        }
+
+        let mut stealers: Vec<_> = self.stealers.iter().collect();
+
+        fastrand::shuffle(&mut stealers);
+
+        return stealers
+            .iter()
+            .map(|s| s.steal_batch_and_pop(worker))
+            .filter_map(|steal| steal.success())
+            .next();
+    }
+
+    pub fn worker(&self) -> &Worker<UThread> {
+        self.worker.get_or(|| {
+            let worker = crossbeam_deque::Worker::new_fifo();
+            self.stealers.get_or(|| worker.stealer());
+            worker
+        })
+    }
+    
+    pub fn push(&self, thread: UThread) {
+        if fastrand::u8(0..4) == 0 {
+            return self.injector.push(thread);
+        }
+
+        if let Some(worker) = self.worker.get() {
+            if worker.len() < MAX_WORK_PER_WORKER {
+                return worker.push(thread);
+            }
+        }
+        self.injector.push(thread)
     }
 }
