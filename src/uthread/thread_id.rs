@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-const MAX_UTHREAD: AtomicU64 = AtomicU64::new(0);
+static MAX_UTHREAD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Eq, PartialEq, Clone, Copy, Hash, Debug)]
 pub struct UThreadId(NonZeroU64);

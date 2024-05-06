@@ -1,5 +1,5 @@
 use std::{
-    io,
+    io::{self, Error},
     sync::atomic::{AtomicU64, Ordering::Release},
 };
 
@@ -40,8 +40,8 @@ impl Runtime {
         let res = self.executor.context_switch();
 
         if res.is_err() {
-            self.reactor.submit_and_wait();
-            self.executor.context_switch();
+            self.reactor.submit_and_wait()?;
+            self.executor.context_switch().map_err(|_| Error::other(""))?;
         }
 
         Ok(())

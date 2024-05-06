@@ -1,9 +1,10 @@
 pub(crate) use context::Context;
 
 pub(crate) use self::repr_context::ReprContext;
-use self::thread_id::UThreadId;
+use self::{builder::Builder, thread_id::UThreadId};
 pub use join_handle::JoinHandle;
 use std::sync::atomic::Ordering::*;
+pub use yield_now::yield_now;
 
 mod builder;
 mod context;
@@ -12,6 +13,7 @@ mod lifecycle;
 mod registers;
 mod repr_context;
 mod thread_id;
+mod yield_now;
 
 #[derive(Clone)]
 pub struct UThread {
@@ -19,10 +21,6 @@ pub struct UThread {
 }
 
 impl UThread {
-    fn new() -> UThread {
-        todo!()
-    }
-
     /// Gets the thread's unique identifier.
     ///
     /// # Examples
@@ -115,10 +113,19 @@ impl UThread {
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake
     pub fn unpark(&self) {
-        self.cx
+        let Ok(_) = self
+            .cx
             .is_queued
-            .compare_exchange(false, true, Release, Relaxed);
+            .compare_exchange(false, true, Release, Relaxed)
+        else {
+            return;
+        };
         pneuma::runtime::current().executor.push(self.clone());
+    }
+
+    pub(crate) fn for_os_thread() -> UThread {
+        let cx = Context::for_os_thread();
+        UThread { cx }
     }
 }
 
@@ -142,13 +149,10 @@ impl UThread {
 /// handler.join();
 /// ```
 #[must_use]
-
 pub fn current() -> UThread {
     pneuma::runtime::current()
         .executor
-        .current
-        .get()
-        .unwrap()
+        .current()
         .lock()
         .unwrap()
         .clone()
@@ -158,4 +162,12 @@ pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave undropped any variables
     pneuma::runtime::current().park()
+}
+
+pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+where
+    F: FnOnce() -> T + Send + 'static,
+    T: Send + 'static,
+{
+    Builder::new().spawn(f).unwrap()
 }

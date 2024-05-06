@@ -30,8 +30,12 @@ impl Executor {
         Ok(())
     }
 
+    pub(crate) fn current(&self) -> &Mutex<UThread> {
+        self.current.get_or(|| Mutex::new(UThread::for_os_thread()))
+    }
+
     fn set_current(&self, with: UThread) -> UThread {
-        let mut current = self.current.get().unwrap().lock().unwrap();
+        let mut current = self.current().lock().unwrap();
         replace(&mut *current, with)
     }
 
@@ -71,7 +75,7 @@ impl Executor {
             worker
         })
     }
-    
+
     pub fn push(&self, thread: UThread) {
         if fastrand::u8(0..4) == 0 {
             return self.injector.push(thread);
