@@ -17,6 +17,7 @@ extern "C" {
     /// Caller must ensure that these threads are not currently being
     /// scheduled by another worker.
     pub(crate) fn switch_context(store: Context, next: Context) -> [Context; 2];
+    #[allow(dead_code)]
     pub(crate) fn start_coroutine(next: NonNull<ReprContext>);
 }
 
