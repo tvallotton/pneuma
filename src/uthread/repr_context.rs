@@ -47,7 +47,7 @@ pub struct ReprContext {
 }
 
 impl ReprContext {
-    pub fn new<T, F>(fun: F, mut builder: Builder) -> io::Result<Context>
+    pub fn new<T, F>(fun: F, builder: Builder) -> io::Result<Context>
     where
         F: FnMut(*mut ()) + 'static,
         T: 'static,
@@ -101,7 +101,7 @@ impl ReprContext {
                 .add(out_offset)
                 .cast::<Result<T, Box<dyn Any + Send + 'static>>>() as *mut dyn Any;
 
-        return (layout, ptr.cast(), fun_alloc, out_alloc);
+        (layout, ptr.cast(), fun_alloc, out_alloc)
     }
 
     fn layout<T, F>() -> (Layout, usize, usize) {
@@ -118,13 +118,4 @@ impl ReprContext {
         cx.lifecycle.store(OS_THREAD, Ordering::Release);
         cx
     }
-}
-
-pub(crate) fn layout<T, F>() -> (Layout, usize, usize) {
-    let raw_task = Layout::new::<ReprContext>();
-    let fun = Layout::new::<F>();
-    let out = Layout::new::<Result<T, Box<dyn Any + Send + 'static>>>();
-    let (layout, fun) = raw_task.extend(fun).unwrap();
-    let (layout, out) = layout.extend(out).unwrap();
-    (layout, fun, out)
 }

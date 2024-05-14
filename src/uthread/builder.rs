@@ -43,6 +43,7 @@ use crate::sys::stack::Stack;
 /// [`spawn`]: Builder::spawn
 /// [`uthread::spawn`]: spawn
 /// [`unwrap`]: std::result::Result::unwrap
+
 pub struct Builder {
     pub(crate) name: Option<String>,
     pub(crate) stack_size: usize,
@@ -173,5 +174,11 @@ impl Builder {
             return Ok(stack);
         }
         Stack::new(self.stack_size)
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
     }
 }

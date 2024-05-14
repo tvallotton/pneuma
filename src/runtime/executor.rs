@@ -1,9 +1,7 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
 
 use std::{
-    collections::VecDeque,
     mem::replace,
-    ptr::{addr_of, addr_of_mut},
     sync::{atomic::Ordering, Mutex},
 };
 use thread_local::ThreadLocal;
@@ -21,9 +19,6 @@ pub(crate) struct Executor {
     pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
     pub injector: crossbeam_deque::Injector<UThread>,
-
-    pub all: Mutex<VecDeque<UThread>>,
-
     pub unused_stacks: Mutex<Vec<Stack>>,
 }
 

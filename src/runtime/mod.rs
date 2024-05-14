@@ -1,5 +1,5 @@
 use std::{
-    io::{self, Error},
+    io::{self},
     sync::atomic::{AtomicU64, Ordering::Release},
 };
 
@@ -14,7 +14,7 @@ pub(crate) struct Runtime {
     pub(crate) tick: AtomicU64,
     pub(crate) executor: Executor,
     pub(crate) reactor: Reactor,
-    pub(crate) signal_stack: SignalStack,
+    pub(crate) _signal_stack: SignalStack,
 }
 
 impl Runtime {
@@ -22,13 +22,13 @@ impl Runtime {
         let tick = AtomicU64::new(0);
         let executor = Executor::default();
         let reactor = Reactor::new()?;
-        let signal_stack = SignalStack::new()?;
+        let _signal_stack = SignalStack::new()?;
 
         Ok(Runtime {
             tick,
             executor,
             reactor,
-            signal_stack,
+            _signal_stack,
         })
     }
 

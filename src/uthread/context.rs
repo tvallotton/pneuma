@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     io,
-    mem::forget,
+    mem::transmute,
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},
     process::abort,
@@ -14,7 +14,7 @@ use crate::{runtime::current, sys};
 
 use super::{
     builder::Builder,
-    lifecycle::{self, FINISHED, NEW, OS_THREAD, RUNNING, TAKEN},
+    lifecycle::{FINISHED, NEW, OS_THREAD, RUNNING, TAKEN},
     repr_context::ReprContext,
     UThread,
 };
@@ -63,7 +63,7 @@ impl Context {
         new.run_uthread();
 
         loop {
-            pneuma::uthread::park();
+            pneuma::uthread::park().ok();
         }
     }
 
@@ -95,14 +95,12 @@ impl Context {
         }
     }
 
-    pub fn from_borrowed(ptr: NonNull<ReprContext>) -> Self {
-        let cx = Context { ptr };
-        forget(cx.clone());
-        cx
-    }
-
     pub fn has_exited(&self) -> bool {
         matches!(self.lifecycle.load(Acquire), FINISHED | TAKEN)
+    }
+
+    pub fn as_uthread(&self) -> &UThread {
+        unsafe { transmute(self) }
     }
 }
 
@@ -143,7 +141,7 @@ impl Clone for Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        if self.refcount.fetch_sub(1, Release) != 1 {
+        if dbg!(self.refcount.fetch_sub(1, Release)) != 1 {
             return;
         }
 
@@ -156,9 +154,8 @@ impl Drop for Context {
             TAKEN => (),
             NEW => unsafe { self.fun.drop_in_place() },
             FINISHED => unsafe { self.out.drop_in_place() },
-            RUNNING | _ => {
-                unreachable!()
-            }
+            RUNNING => return self.as_uthread().unpark(),
+            _ => unreachable!(),
         }
 
         unsafe {

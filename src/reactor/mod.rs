@@ -1,6 +1,6 @@
-use std::{io, os::fd::AsRawFd, sync::Mutex, time::Duration};
+use std::{io, sync::Mutex, time::Duration};
 
-use mio::Registry;
+
 
 pub struct Reactor {
     reactor: Mutex<Inner>,

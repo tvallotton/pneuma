@@ -96,7 +96,7 @@ impl<T> JoinHandle<T> {
     pub fn thread(&self) -> &UThread {
         &self.thread
     }
-
+    #[allow(unused_must_use)]
     pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {
         loop {
             let lifecycle = &self.thread.cx.lifecycle;
