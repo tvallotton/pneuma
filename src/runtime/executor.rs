@@ -1,6 +1,10 @@
-use crossbeam_deque::{Stealer, Worker};
+use crossbeam_deque::{Steal, Stealer, Worker};
 
-use std::{collections::VecDeque, mem::replace, sync::Mutex};
+use std::{
+    collections::VecDeque,
+    mem::replace,
+    sync::{atomic::Ordering, Mutex},
+};
 use thread_local::ThreadLocal;
 
 use crate::{sys::stack::Stack, uthread::UThread};
@@ -22,10 +26,13 @@ pub(crate) struct Executor {
 impl Executor {
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
+        new.cx.is_queued.store(false, Ordering::Relaxed);
 
         let old = self.set_current(new.clone());
 
-        old.cx.switch_to(new.cx);
+        if old != new {
+            old.cx.switch_to(new.cx)?;
+        }
 
         Ok(())
     }
@@ -48,24 +55,35 @@ impl Executor {
             return thread;
         }
 
-        let thread = self
-            .injector
-            .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER)
-            .success();
+        loop {
+            let steal = self.steal(worker);
 
-        if thread.is_some() {
-            return thread;
+            if steal.is_retry() {
+                continue;
+            }
+
+            return steal.success();
+        }
+    }
+
+    pub fn steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
+        let steal = self
+            .injector
+            .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);
+
+        if !steal.is_empty() {
+            return steal;
         }
 
         let mut stealers: Vec<_> = self.stealers.iter().collect();
 
         fastrand::shuffle(&mut stealers);
 
-        return stealers
+        stealers
             .iter()
             .map(|s| s.steal_batch_and_pop(worker))
-            .filter_map(|steal| steal.success())
-            .next();
+            .find(|steal| steal.is_success())
+            .unwrap_or(Steal::Empty)
     }
 
     pub fn worker(&self) -> &Worker<UThread> {
@@ -86,6 +104,7 @@ impl Executor {
                 return worker.push(thread);
             }
         }
+
         self.injector.push(thread)
     }
 }

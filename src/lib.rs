@@ -11,7 +11,7 @@
 //! Pneuma offers uthreads, which are lightweight stackful coroutines.
 //!
 //!
-
+#![allow(clippy::option_map_unit_fn)]
 #![allow(clippy::fn_to_numeric_cast)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::len_without_is_empty)]

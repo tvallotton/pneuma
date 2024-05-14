@@ -81,6 +81,7 @@ impl<T> JoinHandle<T> {
     {
         let cx = Context::new(f, builder)?;
         let thread = UThread { cx };
+        thread.unpark();
         let _ph = PhantomData;
         Ok(JoinHandle { thread, _ph })
     }

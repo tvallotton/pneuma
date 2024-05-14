@@ -1,7 +1,7 @@
 .global start_coroutine
 .type start_coroutine, @function
 .p2align   2
-start_coroutine:     
+start_coroutine:  
     mov x30, #0
     br x19
 

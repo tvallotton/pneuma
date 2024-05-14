@@ -19,6 +19,7 @@ use super::{
 };
 use crate::{sys::stack::Stack, uthread::lifecycle::NEW};
 
+#[repr(C)]
 pub struct ReprContext {
     pub registers: UnsafeCell<Registers>,
 

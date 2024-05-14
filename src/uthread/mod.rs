@@ -3,6 +3,7 @@ pub(crate) use context::Context;
 pub(crate) use self::repr_context::ReprContext;
 use self::{builder::Builder, thread_id::UThreadId};
 pub use join_handle::JoinHandle;
+use std::fmt;
 use std::sync::atomic::Ordering::*;
 pub use yield_now::yield_now;
 
@@ -113,14 +114,13 @@ impl UThread {
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake
     pub fn unpark(&self) {
-        let Ok(_) = self
+        let res = self
             .cx
             .is_queued
-            .compare_exchange(false, true, Release, Relaxed)
-        else {
-            return;
-        };
-        pneuma::runtime::current().executor.push(self.clone());
+            .compare_exchange(false, true, Release, Relaxed);
+        if res.is_ok() {
+            pneuma::runtime::current().executor.push(self.clone());
+        }
     }
 
     pub(crate) fn for_os_thread() -> UThread {
@@ -170,4 +170,19 @@ where
     T: Send + 'static,
 {
     Builder::new().spawn(f).unwrap()
+}
+
+impl std::fmt::Debug for UThread {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UThread")
+            .field("id", &self.id())
+            .field("name", &self.name())
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for UThread {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.cx.ptr(), other.cx.ptr())
+    }
 }

@@ -2,7 +2,6 @@
 .p2align   2
 _start_coroutine:     
     mov x30, #0
-    mov x0, x1 
     br x19
 
 

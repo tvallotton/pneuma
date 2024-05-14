@@ -34,9 +34,8 @@ impl Context {
 
     pub fn setup_registers(self) -> Self {
         let registers = unsafe { &mut *self.registers.get() };
+        *registers = [Self::uthread_start as u64; 19];
         registers[0] = self.stack.bottom();
-        registers[1] = sys::start_coroutine as u64;
-        registers[2] = sys::start_coroutine as u64;
         registers[11] = Self::uthread_start as u64;
         self
     }
@@ -53,13 +52,13 @@ impl Context {
         new.lock()?;
 
         let [old, _] = unsafe { sys::switch_context(self, new) };
-
         old.unlock();
 
         Ok(())
     }
 
     pub extern "C" fn uthread_start(old: Context, new: Context) {
+        new.is_queued.store(false, Relaxed);
         old.unlock();
         drop(old);
 
