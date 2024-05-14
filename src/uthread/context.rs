@@ -10,7 +10,7 @@ use std::{
     sync::atomic::{self},
 };
 
-use crate::sys;
+use crate::{runtime::current, sys};
 
 use super::{
     builder::Builder,
@@ -18,7 +18,7 @@ use super::{
     repr_context::ReprContext,
     UThread,
 };
-
+#[repr(transparent)]
 pub(crate) struct Context {
     pub ptr: NonNull<ReprContext>,
 }
@@ -48,9 +48,8 @@ impl Context {
         ReprContext::for_os_thread()
     }
 
-    pub extern "C" fn switch_to(self, new: Context) -> Result<(), ()> {
+    pub fn switch_to(self, new: Context) -> Result<(), ()> {
         new.lock()?;
-
         let [old, _] = unsafe { sys::switch_context(self, new) };
         old.unlock();
 
@@ -60,7 +59,6 @@ impl Context {
     pub extern "C" fn uthread_start(old: Context, new: Context) {
         new.is_queued.store(false, Relaxed);
         old.unlock();
-        drop(old);
 
         new.run_uthread();
 
@@ -89,14 +87,22 @@ impl Context {
             .map_err(|_| ())
     }
 
-    pub fn unlock(&self) {
-        self.is_running.store(false, Release)
+    pub fn unlock(self) {
+        self.is_running.store(false, Release);
+
+        if self.has_exited() {
+            current().executor.recycle(&self);
+        }
     }
 
     pub fn from_borrowed(ptr: NonNull<ReprContext>) -> Self {
         let cx = Context { ptr };
         forget(cx.clone());
         cx
+    }
+
+    pub fn has_exited(&self) -> bool {
+        matches!(self.lifecycle.load(Acquire), FINISHED | TAKEN)
     }
 }
 

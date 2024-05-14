@@ -3,11 +3,15 @@ use crossbeam_deque::{Steal, Stealer, Worker};
 use std::{
     collections::VecDeque,
     mem::replace,
+    ptr::{addr_of, addr_of_mut},
     sync::{atomic::Ordering, Mutex},
 };
 use thread_local::ThreadLocal;
 
-use crate::{sys::stack::Stack, uthread::UThread};
+use crate::{
+    sys::stack::Stack,
+    uthread::{Context, ReprContext, UThread},
+};
 
 const MAX_WORK_PER_WORKER: usize = 16;
 
@@ -20,7 +24,7 @@ pub(crate) struct Executor {
 
     pub all: Mutex<VecDeque<UThread>>,
 
-    pub _unused_stacks: Mutex<Vec<Stack>>,
+    pub unused_stacks: Mutex<Vec<Stack>>,
 }
 
 impl Executor {
@@ -30,7 +34,7 @@ impl Executor {
 
         let old = self.set_current(new.clone());
 
-        if old != new {
+        if old != new && !new.cx.has_exited() {
             old.cx.switch_to(new.cx)?;
         }
 
@@ -53,6 +57,10 @@ impl Executor {
 
         if thread.is_some() {
             return thread;
+        }
+
+        if cfg!(not(feature = "unsafe_work_stealing")) {
+            return None;
         }
 
         loop {
@@ -106,5 +114,18 @@ impl Executor {
         }
 
         self.injector.push(thread)
+    }
+
+    pub(crate) fn recycle(&self, cx: &Context) {
+        debug_assert!(cx.has_exited());
+        let ReprContext { stack, .. } = unsafe { &mut *cx.ptr() };
+        let stack = std::mem::take(stack);
+        self.unused_stacks.lock().unwrap().push(stack);
+    }
+
+    pub(crate) fn stack(&self, stack_size: usize) -> Option<Stack> {
+        let mut stacks = self.unused_stacks.lock().unwrap();
+        let i = stacks.iter().position(|stack| stack.size >= stack_size)?;
+        Some(stacks.swap_remove(i))
     }
 }

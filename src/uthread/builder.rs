@@ -46,7 +46,6 @@ use crate::sys::stack::Stack;
 pub struct Builder {
     pub(crate) name: Option<String>,
     pub(crate) stack_size: usize,
-    pub(crate) stack: Option<Stack>,
 }
 
 impl Builder {
@@ -72,7 +71,6 @@ impl Builder {
         Builder {
             name: None,
             stack_size: 32 * 1024,
-            stack: None,
         }
     }
 
@@ -166,19 +164,12 @@ impl Builder {
         Builder {
             name: std::thread::current().name().map(Into::into),
             stack_size: 0,
-            stack: None,
-        }
-    }
-
-    pub(crate) fn set_stack(self, stack: Stack) -> Self {
-        Self {
-            stack: Some(stack),
-            ..self
         }
     }
 
     pub(crate) fn stack(&mut self) -> io::Result<Stack> {
-        if let Some(stack) = self.stack.take() {
+        let rt = pneuma::runtime::current();
+        if let Some(stack) = rt.executor.stack(self.stack_size) {
             return Ok(stack);
         }
         Stack::new(self.stack_size)

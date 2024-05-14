@@ -1,10 +1,12 @@
 pub(crate) use context::Context;
 
 pub(crate) use self::repr_context::ReprContext;
-use self::{builder::Builder, thread_id::UThreadId};
+use self::thread_id::UThreadId;
 pub use join_handle::JoinHandle;
 use std::fmt;
 use std::sync::atomic::Ordering::*;
+
+pub use builder::Builder;
 pub use yield_now::yield_now;
 
 mod builder;
