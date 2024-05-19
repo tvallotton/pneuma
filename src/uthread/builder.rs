@@ -35,7 +35,7 @@ use crate::sys::stack::Stack;
 ///     // thread code
 /// }).unwrap();
 ///
-/// handler.join().unwrap();
+/// handler.join();
 /// ```
 ///
 /// [`stack_size`]: Builder::stack_size
@@ -90,7 +90,7 @@ impl Builder {
     ///     .name("foo".into());
     ///
     /// let handler = builder.spawn(|| {
-    ///     assert_eq!(thread::current().name(), Some("foo"))
+    ///     assert_eq!(uthread::current().name(), Some("foo"))
     /// }).unwrap();
     ///
     /// handler.join()
@@ -110,9 +110,9 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// use pneuma::thread;
+    /// use pneuma::uthread;
     ///
-    /// let builder = thread::Builder::new().stack_size(32 * 1024);
+    /// let builder = uthread::Builder::new().stack_size(32 * 1024);
     /// ```
     pub fn stack_size(self, stack_size: usize) -> Self {
         Self { stack_size, ..self }

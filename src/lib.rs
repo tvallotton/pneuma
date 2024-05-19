@@ -18,14 +18,17 @@
 
 extern crate self as pneuma;
 
-pub mod reactor;
 pub(crate) mod runtime;
 pub(crate) mod sys;
-pub mod uthread;
-// #[macro_use]
-// mod utils;
-// pub mod fs;
 
+pub mod fs;
+pub mod net;
+pub mod reactor;
+pub mod sync;
+pub mod time;
+pub mod uthread;
+
+// pub mod fs;
 // pub mod net;
 // mod reactor;
 // mod runtime;

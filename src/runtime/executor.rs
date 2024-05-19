@@ -36,12 +36,12 @@ impl Executor {
         Ok(())
     }
 
-    pub(crate) fn current(&self) -> &Mutex<UThread> {
+    pub(crate) fn current_thread(&self) -> &Mutex<UThread> {
         self.current.get_or(|| Mutex::new(UThread::for_os_thread()))
     }
 
     fn set_current(&self, with: UThread) -> UThread {
-        let mut current = self.current().lock().unwrap();
+        let mut current = self.current_thread().lock().unwrap();
         replace(&mut *current, with)
     }
 
@@ -54,22 +54,25 @@ impl Executor {
             return thread;
         }
 
-        if cfg!(not(feature = "unsafe_work_stealing")) {
-            return None;
+        if cfg!(feature = "unsafe_work_stealing") {
+            return self.steal(worker);
         }
 
+        None
+    }
+
+    pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
         loop {
-            let steal = self.steal(worker);
+            let steal = self.try_steal(worker);
 
             if steal.is_retry() {
                 continue;
             }
-
             return steal.success();
         }
     }
 
-    pub fn steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
+    pub fn try_steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
         let steal = self
             .injector
             .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);

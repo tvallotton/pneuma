@@ -25,7 +25,7 @@ use super::{
 /// ```
 /// use pneuma::uthread;
 ///
-/// let join_handle: uthread::JoinHandle<_> = thread::spawn(|| {
+/// let join_handle: uthread::JoinHandle<_> = uthread::spawn(|| {
 ///     // some work here
 /// });
 /// ```
@@ -46,24 +46,24 @@ use super::{
 ///
 /// ```no_run
 /// use pneuma::uthread;
-/// use pneuma::time::Duration;
+/// use pneuma::time::{Duration, sleep};
 ///
 /// let original_thread = uthread::spawn(|| {
 ///     let _detached_thread = uthread::spawn(|| {
 ///         // Here we sleep to make sure that the first thread returns before.
-///         uthread::sleep(Duration::from_millis(10));
+///         sleep(Duration::from_millis(10));
 ///         // This will be called, even though the JoinHandle is dropped.
 ///         println!("♫ Still alive ♫");
 ///     });
 /// });
 ///
-/// original_thread.join().expect("The thread being joined has panicked");
+/// original_thread.join();
 /// println!("Original thread is joined.");
 ///
 /// // We make sure that the new thread has time to run, before the main
 /// // thread returns.
 ///
-/// uthread::sleep(Duration::from_millis(1000));
+/// sleep(Duration::from_millis(1000));
 /// ```
 ///
 /// [`thread::Builder::spawn`]: Builder::spawn

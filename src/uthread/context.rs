@@ -141,7 +141,7 @@ impl Clone for Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        if dbg!(self.refcount.fetch_sub(1, Release)) != 1 {
+        if self.refcount.fetch_sub(1, Release) != 1 {
             return;
         }
 

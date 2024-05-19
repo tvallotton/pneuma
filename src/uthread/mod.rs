@@ -28,15 +28,15 @@ impl UThread {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::uthread;
     ///
     /// let other_thread = uthread::spawn(|| {
-    ///     thread::current().id()
+    ///     uthread::current().id()
     /// });
     ///
     /// let other_thread_id = other_thread.join();
-    /// assert!(thread::current().id() != other_thread_id);
+    /// assert!(uthread::current().id() != other_thread_id);
     /// ```
     #[must_use]
     pub fn id(&self) -> UThreadId {
@@ -49,13 +49,13 @@ impl UThread {
     ///
     /// Threads by default have no name specified:
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::uthread;
     ///
     /// let builder = uthread::Builder::new();
     ///
     /// let handler = builder.spawn(|| {
-    ///     assert!(thread::current().name().is_none());
+    ///     assert!(uthread::current().name().is_none());
     /// }).unwrap();
     ///
     /// handler.join();
@@ -63,14 +63,14 @@ impl UThread {
     ///
     /// UThread with a specified name:
     ///
-    /// ```ignore
+    /// ```
     /// use pneuma::uthread;
     ///
     /// let builder = uthread::Builder::new()
     ///     .name("foo".into());
     ///
     /// let handler = builder.spawn(|| {
-    ///     assert_eq!(thread::current().name(), Some("foo"))
+    ///     assert_eq!(uthread::current().name(), Some("foo"))
     /// }).unwrap();
     ///
     /// handler.join();
@@ -82,7 +82,7 @@ impl UThread {
 
     /// Wakes up the thread to run in the future.
     ///
-    /// Every thread is equipped with some basic low-level event system support, via
+    /// Every uthread is equipped with some basic low-level event system support, via
     /// the [`park`] function and the [`unpark()`] method. The [`park`] method is
     /// used to cooperatively yield to the scheduler, while the [`unpark`] method
     /// reschedules the thread for execution.
@@ -94,33 +94,34 @@ impl UThread {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// use pneuma::thread;
+    /// ```
+    /// use pneuma::uthread;
     ///
-    /// let parked_thread = thread::Builder::new()
+    /// let parked_thread = uthread::Builder::new()
     ///     .spawn(|| {
     ///         println!("Parking thread");
-    ///         thread::park();
+    ///         uthread::park();
     ///         println!("Thread unparked");
     ///     })
     ///     .unwrap();
     ///
     /// // Yield so the new thread is spawned
-    /// thread::yield_now();
+    /// uthread::yield_now();
     ///
     /// println!("Unpark the thread");
     /// parked_thread.thread().unpark();
     ///
-    /// parked_thread.join().unwrap();
+    /// parked_thread.join();
     /// ```
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake
     pub fn unpark(&self) {
-        let res = self
+        let already_queued = self
             .cx
             .is_queued
-            .compare_exchange(false, true, Release, Relaxed);
-        if res.is_ok() {
+            .compare_exchange(false, true, Release, Relaxed)
+            .is_err();
+        if !already_queued {
             pneuma::runtime::current().executor.push(self.clone());
         }
     }
@@ -137,7 +138,7 @@ impl UThread {
 ///
 /// Getting a handle to the current uthread with `uthread::current()`:
 ///
-/// ```ignore
+/// ```
 /// use pneuma::uthread;
 ///
 /// let handler = uthread::Builder::new()
@@ -154,7 +155,7 @@ impl UThread {
 pub fn current() -> UThread {
     pneuma::runtime::current()
         .executor
-        .current()
+        .current_thread()
         .lock()
         .unwrap()
         .clone()
@@ -162,7 +163,7 @@ pub fn current() -> UThread {
 
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
-    // better not leave undropped any variables
+    // better not leave any variables undropped
     pneuma::runtime::current().park()
 }
 

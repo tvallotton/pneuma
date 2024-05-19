@@ -1,7 +1,9 @@
+use std::{cell::OnceCell, iter::Once, sync::OnceLock};
+
 use pneuma::uthread::{spawn, yield_now};
 
 #[test]
-fn smoke_test() {
+fn a_smoke_test() {
     let handle = spawn(|| {
         dbg!(2);
         pneuma::uthread::yield_now();
@@ -20,10 +22,20 @@ fn smoke_test() {
     dbg!(7);
 }
 
+
+
 #[test]
-fn orphan() {
-    let handle = spawn(|| pneuma::uthread::park().unwrap()
-);
+fn a_leak() {
+    spawn(|| {
+        println!("asd");
+    });
+    
+}
+
+#[test]
+fn a_orphan() {
+    dbg!("a");
+    let handle = spawn(|| pneuma::uthread::park().unwrap());
     yield_now();
     drop(handle);
     yield_now();
