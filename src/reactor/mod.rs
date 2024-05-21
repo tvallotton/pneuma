@@ -1,7 +1,5 @@
 use std::{io, sync::Mutex, time::Duration};
 
-
-
 pub struct Reactor {
     reactor: Mutex<Inner>,
 }

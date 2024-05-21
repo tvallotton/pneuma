@@ -3,10 +3,7 @@ use crossbeam_deque::{Steal, Stealer, Worker};
 use std::{
     mem::replace,
     sync::{
-        atomic::{
-            AtomicBool, AtomicU16,
-            Ordering::{Relaxed, Release},
-        },
+        atomic::Ordering::{Relaxed, Release},
         Mutex,
     },
 };
@@ -32,15 +29,13 @@ pub(crate) struct Executor {
 impl Executor {
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
-        dbg!();
+
         new.cx.is_queued.store(false, Relaxed);
 
         let old = self.set_current(new.clone());
 
         if dbg!(old != new) && !new.cx.has_exited() {
-            dbg!(new.cx.lifecycle.load(Relaxed));
             old.cx.switch_to(new.cx)?;
-            dbg!();
         }
 
         Ok(())
@@ -82,8 +77,7 @@ impl Executor {
     }
 
     fn pop_os_thread(&self, worker: &Worker<UThread>) -> Option<UThread> {
-        let range = 0..(worker.len() + 1);
-        let Some(0) = fastrand::choice(range) else {
+        if fastrand::usize(0..(worker.len() + 1)) != 0 {
             return None;
         };
 
@@ -95,9 +89,7 @@ impl Executor {
             .compare_exchange(true, false, Release, Relaxed)
             .ok()?;
 
-        let os_thread = self.os_thread.get().cloned()?;
-
-        Some(os_thread)
+        self.os_thread.get().cloned()
     }
 
     pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
@@ -140,17 +132,17 @@ impl Executor {
     }
 
     pub fn push(&self, thread: UThread) {
-        if fastrand::u8(0..4) == 0 {
-            return self.injector.push(thread);
+        if fastrand::u8(0..6) == 0 {
+            return dbg!(self.injector.push(thread));
         }
 
-        if let Some(worker) = self.worker.get() {
-            if worker.len() < MAX_WORK_PER_WORKER {
-                return worker.push(thread);
-            }
+        let worker = self.worker();
+
+        if worker.len() < MAX_WORK_PER_WORKER {
+            return dbg!(worker.push(thread));
         }
 
-        self.injector.push(thread)
+        dbg!(self.injector.push(thread))
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {

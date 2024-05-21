@@ -63,7 +63,6 @@ impl Context {
         new.run_uthread();
 
         loop {
-            dbg!("exit");
             pneuma::uthread::park().ok();
         }
     }

@@ -109,7 +109,6 @@ impl<T> JoinHandle<T> {
                         .unwrap()
                         .insert(pneuma::uthread::current());
                     self.thread.unpark();
-                    dbg!("this?");
                     pneuma::uthread::park().unwrap();
                 }
                 FINISHED => unsafe {

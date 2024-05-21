@@ -122,7 +122,8 @@ impl UThread {
             .is_queued
             .compare_exchange(false, true, Release, Relaxed)
             .is_err();
-        if dbg!(!already_queued) {
+
+        if !already_queued {
             self.queue();
         }
     }
@@ -173,7 +174,6 @@ pub fn current() -> UThread {
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
-    dbg!("park()");
     pneuma::runtime::current().park()
 }
 

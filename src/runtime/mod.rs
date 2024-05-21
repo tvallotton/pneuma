@@ -33,9 +33,8 @@ impl Runtime {
     }
 
     pub fn park(&self) -> io::Result<()> {
-        dbg!("park 1");
         self.increment_tick()?;
-        dbg!();
+
         // NOTE: we might never return
         // better not leave any variables undropped
         let res = self.executor.context_switch();
