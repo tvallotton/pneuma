@@ -5,31 +5,28 @@ use pneuma::uthread::{spawn, yield_now};
 #[test]
 fn a_smoke_test() {
     let handle = spawn(|| {
-        dbg!(2);
+        dbg!("a_smoke_test 2");
         pneuma::uthread::yield_now();
-        dbg!(3);
+        dbg!("a_smoke_test 3");
         pneuma::uthread::yield_now();
-        dbg!(5);
+        dbg!("a_smoke_test 5");
 
         pneuma::uthread::yield_now();
-        dbg!(6)
+        dbg!("a_smoke_test 6")
     });
 
-    dbg!(1);
+    dbg!("a_smoke_test 1");
     pneuma::uthread::yield_now();
-    dbg!(4);
+    dbg!("a_smoke_test 4");
     handle.join();
-    dbg!(7);
+    dbg!("a_smoke_test 7");
 }
-
-
 
 #[test]
 fn a_leak() {
     spawn(|| {
         println!("asd");
     });
-    
 }
 
 #[test]

@@ -1,5 +1,6 @@
 pub(crate) use context::Context;
 
+use self::lifecycle::OS_THREAD;
 pub(crate) use self::repr_context::ReprContext;
 use self::thread_id::UThreadId;
 pub use join_handle::JoinHandle;
@@ -121,9 +122,17 @@ impl UThread {
             .is_queued
             .compare_exchange(false, true, Release, Relaxed)
             .is_err();
-        if !already_queued {
-            pneuma::runtime::current().executor.push(self.clone());
+        if dbg!(!already_queued) {
+            self.queue();
         }
+    }
+
+    #[inline]
+    fn queue(&self) {
+        if let OS_THREAD = self.cx.lifecycle.load(Relaxed) {
+            return;
+        }
+        pneuma::runtime::current().executor.push(self.clone())
     }
 
     pub(crate) fn for_os_thread() -> UThread {
@@ -164,6 +173,7 @@ pub fn current() -> UThread {
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
+    dbg!("park()");
     pneuma::runtime::current().park()
 }
 

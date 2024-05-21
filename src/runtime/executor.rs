@@ -2,7 +2,13 @@ use crossbeam_deque::{Steal, Stealer, Worker};
 
 use std::{
     mem::replace,
-    sync::{atomic::Ordering, Mutex},
+    sync::{
+        atomic::{
+            AtomicBool, AtomicU16,
+            Ordering::{Relaxed, Release},
+        },
+        Mutex,
+    },
 };
 use thread_local::ThreadLocal;
 
@@ -16,6 +22,7 @@ const MAX_WORK_PER_WORKER: usize = 16;
 #[derive(Default)]
 pub(crate) struct Executor {
     pub current: ThreadLocal<Mutex<UThread>>,
+    pub os_thread: ThreadLocal<UThread>,
     pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
     pub injector: crossbeam_deque::Injector<UThread>,
@@ -25,19 +32,26 @@ pub(crate) struct Executor {
 impl Executor {
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
-        new.cx.is_queued.store(false, Ordering::Relaxed);
+        dbg!();
+        new.cx.is_queued.store(false, Relaxed);
 
         let old = self.set_current(new.clone());
 
-        if old != new && !new.cx.has_exited() {
+        if dbg!(old != new) && !new.cx.has_exited() {
+            dbg!(new.cx.lifecycle.load(Relaxed));
             old.cx.switch_to(new.cx)?;
+            dbg!();
         }
 
         Ok(())
     }
 
     pub(crate) fn current_thread(&self) -> &Mutex<UThread> {
-        self.current.get_or(|| Mutex::new(UThread::for_os_thread()))
+        self.current.get_or(|| {
+            let os_thread = UThread::for_os_thread();
+            self.os_thread.get_or(|| os_thread.clone());
+            Mutex::new(os_thread)
+        })
     }
 
     fn set_current(&self, with: UThread) -> UThread {
@@ -47,6 +61,12 @@ impl Executor {
 
     fn pop(&self) -> Option<UThread> {
         let worker = self.worker();
+
+        let os_thread = self.pop_os_thread(worker);
+
+        if os_thread.is_some() {
+            return os_thread;
+        }
 
         let thread = worker.pop();
 
@@ -59,6 +79,25 @@ impl Executor {
         }
 
         None
+    }
+
+    fn pop_os_thread(&self, worker: &Worker<UThread>) -> Option<UThread> {
+        let range = 0..(worker.len() + 1);
+        let Some(0) = fastrand::choice(range) else {
+            return None;
+        };
+
+        let os_thread = self.os_thread.get().cloned()?;
+
+        os_thread
+            .cx
+            .is_queued
+            .compare_exchange(true, false, Release, Relaxed)
+            .ok()?;
+
+        let os_thread = self.os_thread.get().cloned()?;
+
+        Some(os_thread)
     }
 
     pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {

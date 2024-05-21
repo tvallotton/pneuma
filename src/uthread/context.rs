@@ -63,6 +63,7 @@ impl Context {
         new.run_uthread();
 
         loop {
+            dbg!("exit");
             pneuma::uthread::park().ok();
         }
     }
@@ -74,6 +75,15 @@ impl Context {
 
         f(self.out.cast());
         self.lifecycle.store(FINISHED, Release);
+
+        self.join_waker
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(UThread::unpark);
+    }
+
+    pub fn wake_joiner(&self) {
         self.join_waker
             .lock()
             .unwrap()
@@ -91,6 +101,7 @@ impl Context {
         self.is_running.store(false, Release);
 
         if self.has_exited() {
+            self.wake_joiner();
             current().executor.recycle(&self);
         }
     }
