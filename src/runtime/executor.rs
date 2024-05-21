@@ -34,7 +34,7 @@ impl Executor {
 
         let old = self.set_current(new.clone());
 
-        if dbg!(old != new) && !new.cx.has_exited() {
+        if (old != new) && !new.cx.has_exited() {
             old.cx.switch_to(new.cx)?;
         }
 

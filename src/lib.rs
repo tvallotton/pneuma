@@ -22,6 +22,7 @@ pub(crate) mod runtime;
 pub(crate) mod sys;
 
 pub mod fs;
+pub mod future;
 pub mod net;
 pub mod reactor;
 pub mod sync;

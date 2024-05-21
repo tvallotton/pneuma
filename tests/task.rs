@@ -11,7 +11,7 @@ fn a_smoke_test() {
 }
 
 #[test]
-fn a_leak() {
+fn leak() {
     spawn(|| {
         println!("asd");
     });
@@ -19,7 +19,6 @@ fn a_leak() {
 
 #[test]
 fn a_orphan() {
-    ("a");
     let handle = spawn(|| pneuma::uthread::park().unwrap());
     yield_now();
     drop(handle);
