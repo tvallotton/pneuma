@@ -6,15 +6,10 @@ use std::sync::atomic::Ordering::Relaxed;
 
 pub struct Registration {
     key: usize,
-    interests: AtomicU8,
+    interests: Interest,
 }
 
 impl Registration {
-    fn new(key: usize, interests: mio::Interest) -> Registration {
-        let interests = AtomicU8::new(unsafe { transmute(interests) });
-        Registration { key, interests }
-    }
-
     pub fn register<S>(source: &mut S, interests: mio::Interest) -> io::Result<Registration>
     where
         S: mio::event::Source + ?Sized,
@@ -24,7 +19,7 @@ impl Registration {
 
         let key = reactor.tokens.insert(uthread);
 
-        let registration = Registration::new(key, interests);
+        let registration = Registration { key, interests };
 
         reactor
             .poll
@@ -33,7 +28,7 @@ impl Registration {
             .map(|_| registration)
     }
 
-    pub fn reregister<S>(&self, source: &mut S, interests: mio::Interest) -> io::Result<()>
+    pub fn reregister<S>(&mut self, source: &mut S, interests: mio::Interest) -> io::Result<()>
     where
         S: mio::event::Source + ?Sized,
     {
@@ -44,13 +39,13 @@ impl Registration {
             .registry()
             .reregister(source, Token(self.key), interests)?;
 
-        self.interests
-            .store(unsafe { transmute(interests) }, Relaxed);
+        self.interests = interests;
+
         Ok(())
     }
 
     pub fn interests(&self) -> Interest {
-        unsafe { transmute(self.interests.load(Relaxed)) }
+        self.interests
     }
 }
 

@@ -1,5 +1,11 @@
 use mio::Interest;
-use std::{fmt::Write, io, net::SocketAddr, os::fd::AsRawFd};
+use std::{
+    fmt::{Debug, Write},
+    io::{self, Error},
+    net::{Shutdown, SocketAddr},
+    os::fd::AsRawFd,
+    time::{Duration, Instant},
+};
 use tokio::net::ToSocketAddrs;
 
 use crate::{future::wait, reactor::Registration};
@@ -11,6 +17,15 @@ pub struct TcpStream {
 
 impl TcpStream {
     pub fn connect(addr: SocketAddr) -> io::Result<Self> {
+        Self::_connect_timeout(addr, None)
+    }
+
+    pub fn connect_timeout(addr: SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
+        Self::_connect_timeout(addr, Some(timeout))
+    }
+
+    #[inline]
+    fn _connect_timeout(addr: SocketAddr, timeout: Option<Duration>) -> io::Result<TcpStream> {
         // source: https://github.com/Thomasdezeeuw/heph/blob/0c4f1ab3eaf08bea1d65776528bfd6114c9f8374/src/net/tcp/stream.rs#L560-L622
         // This relates directly Mio and `kqueue(2)` and `epoll(2)`. To do a
         // non-blocking TCP connect properly we need to a couple of things.
@@ -35,22 +50,21 @@ impl TcpStream {
         // * https://cr.yp.to/docs/connect.html
         // * https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
 
-        // If we hit an error while connecting return that error.
-
         let mut stream = mio::net::TcpStream::connect(addr)?;
-
-        let reactor = pneuma::reactor::current();
 
         let registration =
             Registration::register(&mut stream, Interest::READABLE | Interest::WRITABLE)?;
 
-        if let Ok(Some(err)) | Err(err) = stream.take_error() {
-            return Err(err);
-        }
+        let start = timeout.map(|_| Instant::now());
+
         loop {
+            // If we hit an error while connecting return that error.
+            if let Ok(Some(err)) | Err(err) = stream.take_error() {
+                return Err(err);
+            }
+
             // If we can get a peer address it means the stream is
             // connected.
-
             let Err(err) = stream.peer_addr() else {
                 return Ok(TcpStream {
                     stream,
@@ -66,19 +80,94 @@ impl TcpStream {
             {
                 return Err(err);
             }
+
+            // Check if we have exceeded the timeout.
+            if start.is_some_and(|time| time.elapsed() > timeout.unwrap()) {
+                return Err(Error::from_raw_os_error(libc::ETIMEDOUT));
+            }
+
             // Socket is not (yet) connected but haven't hit an
-            // error either. So we return yield and wait for
+            // error either. So we yield and wait for
             // another event.
             pneuma::uthread::park()?;
         }
+    }
+    /// Returns the socket address of the remote peer of this TCP connection.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pneuma::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpStream};
+    ///
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    ///                        .expect("Couldn't connect to the server...");
+    /// assert_eq!(stream.peer_addr().unwrap(),
+    ///            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)));
+    /// ```
+    fn peer_addr(&self) -> std::io::Result<SocketAddr> {
+        self.stream.peer_addr()
+    }
+
+    /// Returns the socket address of the local half of this TCP connection.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pneuma::net::{IpAddr, Ipv4Addr, TcpStream};
+    ///
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    ///                        .expect("Couldn't connect to the server...");
+    /// assert_eq!(stream.local_addr().unwrap().ip(),
+    ///            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+    /// ```
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.stream.local_addr()
+    }
+
+    /// Shuts down the read, write, or both halves of this connection.
+    ///
+    /// This function will cause all pending and future I/O on the specified
+    /// portions to return immediately with an appropriate value (see the
+    /// documentation of [`Shutdown`]).
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// Calling this function multiple times may result in different behavior,
+    /// depending on the operating system. On Linux, the second call will
+    /// return `Ok(())`, but on macOS, it will return `ErrorKind::NotConnected`.
+    /// This may change in the future.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pneuma::net::{Shutdown, TcpStream};
+    ///
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    ///                        .expect("Couldn't connect to the server...");
+    /// stream.shutdown(Shutdown::Both).expect("shutdown call failed");
+    /// ```
+    pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+        self.stream.shutdown(how)
     }
 }
 
 impl io::Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        pneuma::reactor::op::write(&mut self.stream, &self.registration, buf)
+        pneuma::reactor::op::write(&mut self.stream, &mut self.registration, buf)
     }
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+impl io::Read for TcpStream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        pneuma::reactor::op::read(&mut self.stream, &mut self.registration, buf)
+    }
+}
+
+impl Debug for TcpStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.stream.fmt(f)
     }
 }

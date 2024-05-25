@@ -31,10 +31,11 @@ impl Reactor {
         let io_uring = io_uring::IoUring::new(256)?;
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(256);
-
+        let tokens = Slab::new();
         let reactor = Inner {
             poll,
             events,
+            tokens,
             io_uring,
         };
 
@@ -70,7 +71,16 @@ impl Reactor {
         #[cfg(target_os = "linux")]
         reactor.io_uring.submit()?;
         let Inner { poll, events, .. } = reactor;
-        poll.poll(events, timeout)
+        poll.poll(events, timeout)?;
+
+        for event in events.iter() {
+            let Some(uthread) = reactor.tokens.get(event.token().0) else {
+                continue;
+            };
+            uthread.unpark();
+        }
+
+        Ok(())
     }
 }
 
