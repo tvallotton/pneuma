@@ -2,11 +2,11 @@ use mio::Interest;
 use std::{fmt::Write, io, net::SocketAddr, os::fd::AsRawFd};
 use tokio::net::ToSocketAddrs;
 
-use crate::{future::wait, reactor::UnregisterGuard};
+use crate::{future::wait, reactor::Registration};
 
 pub struct TcpStream {
     stream: mio::net::TcpStream,
-    guard: UnregisterGuard,
+    registration: Registration,
 }
 
 impl TcpStream {
@@ -41,7 +41,8 @@ impl TcpStream {
 
         let reactor = pneuma::reactor::current();
 
-        let guard = reactor.register(&mut stream, Interest::READABLE | Interest::WRITABLE)?;
+        let registration =
+            Registration::register(&mut stream, Interest::READABLE | Interest::WRITABLE)?;
 
         if let Ok(Some(err)) | Err(err) = stream.take_error() {
             return Err(err);
@@ -51,7 +52,10 @@ impl TcpStream {
             // connected.
 
             let Err(err) = stream.peer_addr() else {
-                return Ok(TcpStream { stream, guard });
+                return Ok(TcpStream {
+                    stream,
+                    registration,
+                });
             };
 
             // `NotConnected` (`ENOTCONN`) means the socket not yet
@@ -72,7 +76,7 @@ impl TcpStream {
 
 impl io::Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        todo!()
+        pneuma::reactor::op::write(&mut self.stream, &self.registration, buf)
     }
     fn flush(&mut self) -> io::Result<()> {
         Ok(())

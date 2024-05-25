@@ -1,3 +1,5 @@
-pub struct TcpSteam {
-    stream: mio::net::TcpStream,
+pub struct UpdSocket {
+    stream: mio::net::UdpSocket,
 }
+
+impl UpdSocket {}
