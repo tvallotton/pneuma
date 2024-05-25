@@ -17,6 +17,7 @@ crossbeam-deque = "0.8.5"
 fastrand = "2.1.0"
 libc = "0.2.151"
 mio = { version = "0.8.10", features = ["os-poll", "net"] }
+slab = "0.4.9"
 thread_local = "1.1.8"
 tokio = { version = "1.37.0", features = ["net", "rt"] }
 
