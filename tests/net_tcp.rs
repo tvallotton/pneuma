@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 #[test]
-fn tcp() {
+fn tcp_connect_and_write() {
     let addr: SocketAddr = "127.0.0.1:8081".parse().unwrap();
     let tcp_listener = std::net::TcpListener::bind(addr).unwrap();
 
