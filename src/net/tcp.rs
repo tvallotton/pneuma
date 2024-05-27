@@ -100,14 +100,15 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use pneuma::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpStream};
+    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)?;
     ///
-    /// let stream = TcpStream::connect("127.0.0.1:8080")
-    ///                        .expect("Couldn't connect to the server...");
     /// assert_eq!(stream.peer_addr().unwrap(),
     ///            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)));
+    /// # Ok(())}
     /// ```
-    fn peer_addr(&self) -> std::io::Result<SocketAddr> {
+    pub fn peer_addr(&self) -> std::io::Result<SocketAddr> {
         self.stream.peer_addr()
     }
 
@@ -116,12 +117,14 @@ impl TcpStream {
     /// # Examples
     ///
     /// ```no_run
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use pneuma::net::{IpAddr, Ipv4Addr, TcpStream};
     ///
-    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)
     ///                        .expect("Couldn't connect to the server...");
     /// assert_eq!(stream.local_addr().unwrap().ip(),
     ///            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+    /// # Ok(())}
     /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.stream.local_addr()
@@ -183,10 +186,11 @@ impl TcpStream {
     ///
     /// ```no_run
     /// use pneuma::net::{Shutdown, TcpStream};
-    ///
-    /// let stream = TcpStream::connect("127.0.0.1:8080")
-    ///                        .expect("Couldn't connect to the server...");
+    ///# fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)?;
+    ///                        
     /// stream.shutdown(Shutdown::Both).expect("shutdown call failed");
+    /// # Ok(())}
     /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.stream.shutdown(how)

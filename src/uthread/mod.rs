@@ -98,21 +98,24 @@ impl UThread {
     /// ```
     /// use pneuma::uthread;
     ///
-    /// let parked_thread = uthread::Builder::new()
-    ///     .spawn(|| {
-    ///         println!("Parking thread");
-    ///         uthread::park();
-    ///         println!("Thread unparked");
+    /// let parent = uthread::current();
+    ///
+    ///
+    /// uthread::Builder::new()
+    ///     .spawn(move || {
+    ///         println!("we unpark the parent thread");
+    ///         parent.unpark();
+    ///
     ///     })
     ///     .unwrap();
     ///
-    /// // Yield so the new thread is spawned
-    /// uthread::yield_now();
+    /// // we park
+    /// uthread::park();
     ///
-    /// println!("Unpark the thread");
-    /// parked_thread.thread().unpark();
+    /// println!("We were unparked");
     ///
-    /// parked_thread.join();
+    ///
+    ///
     /// ```
     /// [`unpark`]: Thread::unpark
     /// [`Waker::wake`]: std::task::Waker::wake

@@ -1,8 +1,4 @@
-use mio::Interest;
-use std::io::{self, Write};
-use std::io::{IoSlice, Read};
-
-use super::registration::Registration;
+use std::io;
 
 #[inline]
 pub fn nonblocking<F, T>(mut closure: F) -> io::Result<T>
