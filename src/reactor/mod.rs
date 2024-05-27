@@ -1,11 +1,6 @@
-use mio::Interest;
 pub use registration::Registration;
 use slab::Slab;
-use std::{
-    io,
-    sync::{atomic::AtomicU8, Mutex},
-    time::Duration,
-};
+use std::{io, sync::Mutex, time::Duration};
 
 use crate::uthread::UThread;
 

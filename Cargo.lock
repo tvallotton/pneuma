@@ -82,6 +82,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
+name = "dns-protocol"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66656c8d846e5150766e33ead23c685281b77159f279f9ae73b6b9f197544a74"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,9 +177,11 @@ name = "pneuma"
 version = "0.1.0"
 dependencies = [
  "crossbeam-deque",
+ "dns-protocol",
  "fastrand",
  "io-uring",
  "libc",
+ "memchr",
  "mio",
  "pneuma",
  "slab",

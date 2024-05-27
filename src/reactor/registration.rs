@@ -1,8 +1,8 @@
-use std::{io, mem::transmute, sync::atomic::AtomicU8};
+use std::{io};
 
 use mio::{Interest, Token};
 
-use std::sync::atomic::Ordering::Relaxed;
+
 
 pub struct Registration {
     key: usize,

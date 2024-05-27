@@ -1,17 +1,13 @@
 use mio::Interest;
 use std::{
-    fmt::{Debug, Write},
+    fmt::Debug,
     io::{self, Error, IoSlice},
     net::{Shutdown, SocketAddr},
     os::fd::AsRawFd,
     time::{Duration, Instant},
 };
-use tokio::net::ToSocketAddrs;
 
-use crate::{
-    future::wait,
-    reactor::{op::nonblocking, Registration},
-};
+use crate::reactor::{op::nonblocking, Registration};
 
 pub struct TcpStream {
     stream: mio::net::TcpStream,
@@ -19,7 +15,7 @@ pub struct TcpStream {
 }
 
 impl TcpStream {
-    pub fn connect(addr: SocketAddr) -> io::Result<Self> {
+    pub fn connect<>(addr: SocketAddr) -> io::Result<Self> {
         Self::_connect_timeout(addr, None)
     }
 
@@ -197,7 +193,7 @@ impl TcpStream {
     }
 
     pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
-        nonblocking(|| self.stream.peek(buf))
+        nonblocking(|| self.stream.peek(buf), None)
     }
 }
 
@@ -205,13 +201,13 @@ impl io::Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.registration
             .add(&mut self.stream, Interest::WRITABLE)?;
-        nonblocking(|| self.stream.write(buf))
+        nonblocking(|| self.stream.write(buf), None)
     }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.registration
             .add(&mut self.stream, Interest::WRITABLE)?;
-        nonblocking(|| self.stream.write_vectored(bufs))
+        nonblocking(|| self.stream.write_vectored(bufs), None)
     }
 
     #[inline]
@@ -224,12 +220,12 @@ impl io::Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.registration
             .add(&mut self.stream, Interest::READABLE)?;
-        nonblocking(|| self.stream.read(buf))
+        nonblocking(|| self.stream.read(buf), None)
     }
     fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
         self.registration
             .add(&mut self.stream, Interest::READABLE)?;
-        nonblocking(|| self.stream.read_vectored(bufs))
+        nonblocking(|| self.stream.read_vectored(bufs), None)
     }
 }
 

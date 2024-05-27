@@ -1,4 +1,4 @@
-use pneuma::net::{self, TcpStream};
+use pneuma::net::{TcpStream};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::time::Duration;
@@ -43,7 +43,7 @@ fn tcp_connection_refused() {
 #[test]
 fn tcp_connect_timout() {
     let addr: SocketAddr = "127.0.0.1:8083".parse().unwrap();
-    let listener = TcpListener::bind(addr);
+    let _listener = TcpListener::bind(addr);
 
     // We create 129 because the backlog is 128 by default
     let streams: Vec<_> = (0..512)

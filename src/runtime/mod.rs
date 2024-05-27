@@ -41,7 +41,7 @@ impl Runtime {
 
         if res.is_err() {
             self.reactor.submit_and_wait()?;
-            dbg!(self.executor.context_switch());
+            self.executor.context_switch().ok();
         }
 
         Ok(())

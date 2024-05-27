@@ -1,6 +1,7 @@
 use std::{
-    io::{self, ErrorKind},
+    io,
     net::{Ipv4Addr, Ipv6Addr},
+    time::Duration,
 };
 
 use crate::reactor::{op::nonblocking, Registration};
@@ -9,25 +10,26 @@ use std::net::SocketAddr;
 
 pub struct UdpSocket {
     socket: mio::net::UdpSocket,
-
-    registration: Registration,
+    _registration: Registration,
+    timeout: Option<Duration>,
 }
 
 impl UdpSocket {
     pub fn bind(addr: SocketAddr) -> io::Result<UdpSocket> {
         let mut socket = mio::net::UdpSocket::bind(addr)?;
 
-        let registration =
+        let _registration =
             Registration::register(&mut socket, Interest::READABLE | Interest::WRITABLE)?;
 
         Ok(UdpSocket {
             socket,
-            registration,
+            _registration,
+            timeout: None,
         })
     }
 
     pub fn connect(&mut self, addr: SocketAddr) -> io::Result<()> {
-        nonblocking(|| self.socket.connect(addr))
+        nonblocking(|| self.socket.connect(addr), None)
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
@@ -35,19 +37,19 @@ impl UdpSocket {
     }
 
     pub fn send_to(&self, buf: &[u8], target: SocketAddr) -> io::Result<usize> {
-        nonblocking(|| self.socket.send_to(buf, target))
+        nonblocking(|| self.socket.send_to(buf, target), None)
     }
 
     pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
-        nonblocking(|| self.socket.send(buf))
+        nonblocking(|| self.socket.send(buf), None)
     }
 
     pub fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
-        nonblocking(|| self.socket.recv(buf))
+        nonblocking(|| self.socket.recv(buf), self.timeout)
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        nonblocking(|| self.socket.recv_from(buf))
+        nonblocking(|| self.socket.recv_from(buf), self.timeout)
     }
 
     /// Sets the value of the `SO_BROADCAST` option for this socket.
@@ -268,5 +270,13 @@ impl UdpSocket {
     /// calls.
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
         self.socket.take_error()
+    }
+
+    pub fn set_read_timeout(&mut self, dur: Option<Duration>) {
+        self.timeout = dur
+    }
+
+    pub fn read_timeout(&mut self) -> Option<Duration> {
+        self.timeout
     }
 }
