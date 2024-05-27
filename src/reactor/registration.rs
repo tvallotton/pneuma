@@ -47,6 +47,16 @@ impl Registration {
     pub fn interests(&self) -> Interest {
         self.interests
     }
+
+    pub fn add<S>(&mut self, source: &mut S, interest: Interest) -> io::Result<()>
+    where
+        S: mio::event::Source + ?Sized,
+    {
+        if self.interests | interest != self.interests {
+            self.reregister(source, self.interests | interest)?;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Registration {

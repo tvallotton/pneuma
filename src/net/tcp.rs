@@ -1,14 +1,17 @@
 use mio::Interest;
 use std::{
     fmt::{Debug, Write},
-    io::{self, Error},
+    io::{self, Error, IoSlice},
     net::{Shutdown, SocketAddr},
     os::fd::AsRawFd,
     time::{Duration, Instant},
 };
 use tokio::net::ToSocketAddrs;
 
-use crate::{future::wait, reactor::Registration};
+use crate::{
+    future::wait,
+    reactor::{op::nonblocking, Registration},
+};
 
 pub struct TcpStream {
     stream: mio::net::TcpStream,
@@ -124,6 +127,45 @@ impl TcpStream {
         self.stream.local_addr()
     }
 
+    /// Gets the value of the `TCP_NODELAY` option on this socket.
+    ///
+    /// For more information about this option, see [`TcpStream::set_nodelay`].
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use pneuma::net::TcpStream;
+    ///
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    ///                        .expect("Couldn't connect to the server...");
+    /// stream.set_nodelay(true).expect("set_nodelay call failed");
+    /// assert_eq!(stream.nodelay().unwrap_or(false), true);
+    /// ```
+    pub fn nodelay(&self) -> io::Result<bool> {
+        self.stream.nodelay()
+    }
+
+    /// Sets the value of the `TCP_NODELAY` option on this socket.
+    ///
+    /// If set, this option disables the Nagle algorithm. This means that
+    /// segments are always sent as soon as possible, even if there is only a
+    /// small amount of data. When not set, data is buffered until there is a
+    /// sufficient amount to send out, thereby avoiding the frequent sending of
+    /// small packets.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use `pneuma::net::TcpStream;
+    ///
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
+    ///                        .expect("Couldn't connect to the server...");
+    /// stream.set_nodelay(true).expect("set_nodelay call failed");
+    /// ```
+    pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
+        self.stream.set_nodelay(nodelay)
+    }
+
     /// Shuts down the read, write, or both halves of this connection.
     ///
     /// This function will cause all pending and future I/O on the specified
@@ -149,12 +191,26 @@ impl TcpStream {
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.stream.shutdown(how)
     }
+
+    pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
+        nonblocking(|| self.stream.peek(buf))
+    }
 }
 
 impl io::Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        pneuma::reactor::op::write(&mut self.stream, &mut self.registration, buf)
+        self.registration
+            .add(&mut self.stream, Interest::WRITABLE)?;
+        nonblocking(|| self.stream.write(buf))
     }
+
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.registration
+            .add(&mut self.stream, Interest::WRITABLE)?;
+        nonblocking(|| self.stream.write_vectored(bufs))
+    }
+
+    #[inline]
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
@@ -162,7 +218,20 @@ impl io::Write for TcpStream {
 
 impl io::Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        pneuma::reactor::op::read(&mut self.stream, &mut self.registration, buf)
+        self.registration
+            .add(&mut self.stream, Interest::READABLE)?;
+        nonblocking(|| self.stream.read(buf))
+    }
+    fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
+        self.registration
+            .add(&mut self.stream, Interest::READABLE)?;
+        nonblocking(|| self.stream.read_vectored(bufs))
+    }
+}
+
+impl AsRawFd for TcpStream {
+    fn as_raw_fd(&self) -> std::os::unix::prelude::RawFd {
+        self.stream.as_raw_fd()
     }
 }
 
