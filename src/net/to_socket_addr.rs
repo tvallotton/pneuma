@@ -47,7 +47,7 @@ use super::dns::lookup;
 /// Creating a [`SocketAddr`] iterator that yields one item:
 ///
 /// ```
-/// use std::net::{ToSocketAddrs, SocketAddr};
+/// use pneuma::net::{ToSocketAddrs, SocketAddr};
 ///
 /// let addr = SocketAddr::from(([127, 0, 0, 1], 443));
 /// let mut addrs_iter = addr.to_socket_addrs().unwrap();
@@ -59,7 +59,7 @@ use super::dns::lookup;
 /// Creating a [`SocketAddr`] iterator from a hostname:
 ///
 /// ```no_run
-/// use std::net::{SocketAddr, ToSocketAddrs};
+/// use pneuma::net::{SocketAddr, ToSocketAddrs};
 ///
 /// // assuming 'localhost' resolves to 127.0.0.1
 /// let mut addrs_iter = "localhost:443".to_socket_addrs().unwrap();
@@ -73,7 +73,7 @@ use super::dns::lookup;
 /// Creating a [`SocketAddr`] iterator that yields multiple items:
 ///
 /// ```
-/// use std::net::{SocketAddr, ToSocketAddrs};
+/// use pneuma::net::{SocketAddr, ToSocketAddrs};
 ///
 /// let addr1 = SocketAddr::from(([0, 0, 0, 0], 80));
 /// let addr2 = SocketAddr::from(([127, 0, 0, 1], 443));
@@ -91,7 +91,7 @@ use super::dns::lookup;
 ///
 /// ```
 /// use std::io;
-/// use std::net::ToSocketAddrs;
+/// use pneuma::net::ToSocketAddrs;
 ///
 /// let err = "127.0.0.1".to_socket_addrs().unwrap_err();
 /// assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
@@ -102,7 +102,7 @@ use super::dns::lookup;
 /// different types:
 ///
 /// ```no_run
-/// use std::net::{TcpStream, Ipv4Addr};
+/// use pneuma::net::{TcpStream, Ipv4Addr};
 ///
 /// let stream = TcpStream::connect(("127.0.0.1", 443));
 /// // or
@@ -216,8 +216,12 @@ impl ToSocketAddrs for str {
             return Ok(vec![addr].into_iter());
         }
 
-        let (domain, port) = self.rsplit_once(':').expect("invalid socket address");
-        let port = port.parse().expect("invalid port");
+        let (domain, port) = self
+            .rsplit_once(':')
+            .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "invalid socket address"))?;
+        let port = port
+            .parse()
+            .map_err(|_| Error::new(ErrorKind::InvalidInput, "invalid port"))?;
 
         Ok(lookup(domain)?
             .map(|ip| SocketAddr::new(ip, port))

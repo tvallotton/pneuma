@@ -4,7 +4,7 @@
 //!
 //! 1. A lightweight stackful coroutine implementation ([`pneuma::uthread`]).
 //! 2. Asynchronous networking, file system, and synchronization primitives ([`pneuma::net`], [`pneuma::fs`], [`pneuma::sync`])
-//! 3. utilities for interoperability with the future based ecosystem ([`pneuma::future`]).
+//! 3. Utilities for interoperability with the future based ecosystem ([`pneuma::future`]).
 //!
 //! # UThreads
 //!

@@ -1,12 +1,15 @@
 use std::{
     io,
     net::{Ipv4Addr, Ipv6Addr},
+    os::fd::{AsRawFd, FromRawFd},
     time::Duration,
 };
 
 use crate::reactor::{op::nonblocking, Registration};
 use mio::Interest;
 use std::net::SocketAddr;
+
+use super::to_socket_addr::{try_each, ToSocketAddrs};
 
 pub struct UdpSocket {
     socket: mio::net::UdpSocket,
@@ -15,7 +18,11 @@ pub struct UdpSocket {
 }
 
 impl UdpSocket {
-    pub fn bind(addr: SocketAddr) -> io::Result<UdpSocket> {
+    pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
+        try_each(addr, |addr| Self::_bind(addr))
+    }
+
+    pub fn _bind(addr: SocketAddr) -> io::Result<UdpSocket> {
         let mut socket = mio::net::UdpSocket::bind(addr)?;
 
         let _registration =
@@ -65,7 +72,7 @@ impl UdpSocket {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use pneuma::net::UdpSocket;
     ///
-    /// let broadcast_socket = UdpSocket::bind("127.0.0.1:0".parse()?)?;
+    /// let broadcast_socket = UdpSocket::bind("127.0.0.1:0")?;
     /// if broadcast_socket.broadcast()? == false {
     ///     broadcast_socket.set_broadcast(true)?;
     /// }
@@ -92,7 +99,7 @@ impl UdpSocket {
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use pneuma::net::UdpSocket;
     ///
-    /// let broadcast_socket = UdpSocket::bind("127.0.0.1:0".parse()?)?;
+    /// let broadcast_socket = UdpSocket::bind("127.0.0.1:0")?;
     /// assert_eq!(broadcast_socket.broadcast()?, false);
     /// #
     /// #    Ok(()) }
@@ -164,15 +171,13 @@ impl UdpSocket {
     /// from this socket.
     ///
     /// # Examples
-    ///
-    #[cfg_attr(feature = "os-poll", doc = "```")]
-    #[cfg_attr(not(feature = "os-poll"), doc = "```ignore")]
+    /// ```
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use pneuma::net::UdpSocket;
     ///
-    /// let socket = UdpSocket::bind("127.0.0.1:0".parse()?)?;
+    /// let socket = UdpSocket::bind("127.0.0.1:0")?;
     /// if socket.ttl()? < 255 {
     ///     socket.set_ttl(255)?;
     /// }
@@ -194,14 +199,13 @@ impl UdpSocket {
     ///
     /// # Examples
     ///
-    #[cfg_attr(feature = "os-poll", doc = "```")]
-    #[cfg_attr(not(feature = "os-poll"), doc = "```ignore")]
+    /// ```no_run
     /// # use std::error::Error;
     /// #
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// use pneuma::net::UdpSocket;
     ///
-    /// let socket = UdpSocket::bind("127.0.0.1:0".parse()?)?;
+    /// let socket = UdpSocket::bind("127.0.0.1:0")?;
     /// socket.set_ttl(255)?;
     ///
     /// assert_eq!(socket.ttl()?, 255);
@@ -272,11 +276,60 @@ impl UdpSocket {
         self.socket.take_error()
     }
 
-    pub fn set_read_timeout(&mut self, dur: Option<Duration>) {
-        self.timeout = dur
+    /// Sets the read timeout to the timeout specified.
+    ///
+    /// If the value specified is [`None`], then [`read`] calls will wait
+    /// indefinitely. An [`Err`] is returned if the zero [`Duration`] is
+    /// passed to this method.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// Platforms may return a different error code whenever a read times out as
+    /// a result of setting this option. For example Unix typically returns an
+    /// error of the kind [`WouldBlock`], but Windows may return [`TimedOut`].
+    ///
+    /// [`read`]: io::Read::read
+    /// [`WouldBlock`]: io::ErrorKind::WouldBlock
+    /// [`TimedOut`]: io::ErrorKind::TimedOut
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pneuma::net::UdpSocket;
+    ///
+    /// let mut socket = UdpSocket::bind("127.0.0.1:34254").expect("couldn't bind to address");
+    /// socket.set_read_timeout(None).expect("set_read_timeout call failed");
+    /// ```
+    ///
+    /// An [`Err`] is returned if the zero [`Duration`] is passed to this
+    /// method:
+    ///
+    /// ```no_run
+    /// use std::io;
+    /// use pneuma::net::UdpSocket;
+    /// use std::time::Duration;
+    ///
+    /// let mut socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
+    /// let result = socket.set_read_timeout(Some(Duration::new(0, 0)));
+    /// let err = result.unwrap_err();
+    /// assert_eq!(err.kind(), io::ErrorKind::InvalidInput)
+    /// ```
+
+    pub fn set_read_timeout(&mut self, dur: Option<Duration>) -> io::Result<()> {
+        self.as_std(|s| s.set_read_timeout(dur))?;
+        self.timeout = dur;
+        Ok(())
     }
 
-    pub fn read_timeout(&mut self) -> Option<Duration> {
-        self.timeout
+    pub fn read_timeout(&mut self) -> io::Result<Option<Duration>> {
+        Ok(self.timeout)
+    }
+
+    pub(crate) fn as_std<T>(&self, mut f: impl FnMut(&mut std::net::UdpSocket) -> T) -> T {
+        let fd = self.socket.as_raw_fd();
+        let mut socket = unsafe { std::net::UdpSocket::from_raw_fd(fd) };
+        let out = f(&mut socket);
+        std::mem::forget(socket);
+        out
     }
 }

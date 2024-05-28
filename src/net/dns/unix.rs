@@ -239,7 +239,7 @@ fn question_with_udp(
     let mut addrs = vec![];
 
     // Write the query to the nameserver address.
-    let mut socket = UdpSocket::bind(([0, 0, 0, 0], 0).into())?;
+    let mut socket = UdpSocket::bind("0.0.0.0:0")?;
     let foreign_addr = SocketAddr::new(nameserver, 53);
 
     // UDP queries are limited to 512 bytes.
@@ -251,7 +251,7 @@ fn question_with_udp(
         // Wait for `timeout` seconds for a response.
         let timeout = Duration::from_secs(resolv.timeout.into());
 
-        socket.set_read_timeout(Some(timeout));
+        socket.set_read_timeout(Some(timeout))?;
 
         // Get the length of the packet we're reading.
         let len = match socket.recv(&mut buf) {

@@ -63,6 +63,17 @@ impl TcpStream {
         try_each(addr, |addr| Self::_connect_timeout(addr, None))
     }
 
+    /// Opens a TCP connection to a remote host with a timeout.
+    ///
+    /// Unlike `connect`, `connect_timeout` takes a single [`SocketAddr`] since
+    /// timeout must be applied to individual addresses.
+    ///
+    /// It is an error to pass a zero `Duration` to this function.
+    ///
+    /// Unlike other methods on `TcpStream`, this does not correspond to a
+    /// single system call. It instead calls `connect` in nonblocking mode and
+    /// then uses an OS-specific mechanism to await the completion of the
+    /// connection request.
     pub fn connect_timeout(addr: SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
         try_each(addr, |addr| Self::_connect_timeout(addr, Some(timeout)))
     }
@@ -142,7 +153,7 @@ impl TcpStream {
     /// ```no_run
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use pneuma::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpStream};
-    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)?;
+    /// let stream = TcpStream::connect("127.0.0.1:8080")?;
     ///
     /// assert_eq!(stream.peer_addr().unwrap(),
     ///            SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080)));
@@ -160,7 +171,7 @@ impl TcpStream {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use pneuma::net::{IpAddr, Ipv4Addr, TcpStream};
     ///
-    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)
+    /// let stream = TcpStream::connect("127.0.0.1:8080")
     ///                        .expect("Couldn't connect to the server...");
     /// assert_eq!(stream.local_addr().unwrap().ip(),
     ///            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
@@ -176,7 +187,7 @@ impl TcpStream {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```no_run
     /// use pneuma::net::TcpStream;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:8080")
@@ -198,8 +209,8 @@ impl TcpStream {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// use `pneuma::net::TcpStream;
+    /// ```no_run
+    /// use pneuma::net::TcpStream;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:8080")
     ///                        .expect("Couldn't connect to the server...");
@@ -227,7 +238,7 @@ impl TcpStream {
     /// ```no_run
     /// use pneuma::net::{Shutdown, TcpStream};
     ///# fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let stream = TcpStream::connect("127.0.0.1:8080".parse()?)?;
+    /// let stream = TcpStream::connect("127.0.0.1:8080")?;
     ///                        
     /// stream.shutdown(Shutdown::Both).expect("shutdown call failed");
     /// # Ok(())}
