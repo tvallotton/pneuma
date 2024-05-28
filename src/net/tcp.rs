@@ -1,13 +1,16 @@
 use mio::Interest;
 use std::{
     fmt::Debug,
-    io::{self, Error, IoSlice},
+    io::{self, Error, IoSlice, Read},
     net::{Shutdown, SocketAddr},
     os::fd::AsRawFd,
     time::{Duration, Instant},
 };
 
 use crate::reactor::{op::nonblocking, Registration};
+use pneuma::net::ToSocketAddrs;
+
+use super::to_socket_addr::try_each;
 
 pub struct TcpStream {
     stream: mio::net::TcpStream,
@@ -15,12 +18,53 @@ pub struct TcpStream {
 }
 
 impl TcpStream {
-    pub fn connect<>(addr: SocketAddr) -> io::Result<Self> {
-        Self::_connect_timeout(addr, None)
+    /// Opens a TCP connection to a remote host.
+    ///
+    /// `addr` is an address of the remote host. Anything which implements
+    /// [`ToSocketAddrs`] trait can be supplied for the address; see this trait
+    /// documentation for concrete examples.
+    ///
+    /// If `addr` yields multiple addresses, `connect` will be attempted with
+    /// each of the addresses until a connection is successful. If none of
+    /// the addresses result in a successful connection, the error returned from
+    /// the last connection attempt (the last address) is returned.
+    ///
+    /// # Examples
+    ///
+    /// Open a TCP connection to `127.0.0.1:8080`:
+    ///
+    /// ```no_run
+    /// use pneuma::net::TcpStream;
+    ///
+    /// if let Ok(stream) = TcpStream::connect("127.0.0.1:8080") {
+    ///     println!("Connected to the server!");
+    /// } else {
+    ///     println!("Couldn't connect to server...");
+    /// }
+    /// ```
+    ///
+    /// Open a TCP connection to `127.0.0.1:8080`. If the connection fails, open
+    /// a TCP connection to `127.0.0.1:8081`:
+    ///
+    /// ```no_run
+    /// use pneuma::net::{SocketAddr, TcpStream};
+    ///
+    /// let addrs = [
+    ///     SocketAddr::from(([127, 0, 0, 1], 8080)),
+    ///     SocketAddr::from(([127, 0, 0, 1], 8081)),
+    /// ];
+    /// if let Ok(stream) = TcpStream::connect(&addrs[..]) {
+    ///     println!("Connected to the server!");
+    /// } else {
+    ///     println!("Couldn't connect to server...");
+    /// }
+    /// ```
+    pub fn connect<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
+        try_each(addr, |addr| Self::_connect_timeout(addr, None))
     }
 
     pub fn connect_timeout(addr: SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
-        Self::_connect_timeout(addr, Some(timeout))
+        try_each(addr, |addr| Self::_connect_timeout(addr, Some(timeout)))
     }
 
     #[inline]

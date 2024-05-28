@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::{io, slice};
 use std::{iter, option, vec};
@@ -245,4 +246,28 @@ impl ToSocketAddrs for String {
     fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
         (**self).to_socket_addrs()
     }
+}
+
+pub(crate) fn try_each<A, F, T>(addresses: A, mut each: F) -> io::Result<T>
+where
+    A: ToSocketAddrs,
+    F: FnMut(SocketAddr) -> io::Result<T>,
+{
+    let addresses = addresses.to_socket_addrs()?;
+
+    let mut last_err = None;
+    for address in addresses {
+        match each(address) {
+            Ok(t) => return Ok(t),
+            err => last_err = Some(err),
+        }
+    }
+    if let Some(err) = last_err {
+        return err;
+    }
+
+    return Err(Error::new(
+        ErrorKind::InvalidInput,
+        "could not resolve to any addresses",
+    ));
 }

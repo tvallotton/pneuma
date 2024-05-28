@@ -316,7 +316,7 @@ fn question_with_tcp(id: u16, query: &[u8], nameserver: IpAddr) -> io::Result<Ve
     }
 
     // Open the socket to the server.
-    let mut socket = TcpStream::connect((nameserver, 53).into())?;
+    let mut socket = TcpStream::connect((nameserver, 53))?;
 
     // Write the length of the query.
     let len_bytes = (query.len() as u16).to_be_bytes();
