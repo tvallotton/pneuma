@@ -156,7 +156,7 @@ impl Builder {
     pub fn spawn<T, F>(self, f: F) -> io::Result<JoinHandle<T>>
     where
         F: FnOnce() -> T + 'static + Send,
-        T: 'static,
+        T: Send + 'static,
     {
         JoinHandle::new(f, self)
     }

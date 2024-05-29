@@ -37,7 +37,7 @@ pub struct ReprContext {
 
     pub fun: *mut dyn FnMut(*mut ()),
 
-    pub out: *mut dyn Any,
+    pub out: *mut (),
     /// immutable
     pub name: Option<String>,
     /// immutable
@@ -47,20 +47,14 @@ pub struct ReprContext {
 }
 
 impl ReprContext {
-    pub fn new<T, F>(fun: F, builder: Builder) -> io::Result<Context>
+    /// Safety
+    /// The context cannot outlive F and T's lifetime.
+    pub unsafe fn new<'scope, T, F>(fun: F, mut builder: Builder) -> io::Result<Context>
     where
-        F: FnMut(*mut ()) + 'static,
-        T: 'static,
+        F: FnMut(*mut ()) + 'scope,
+        T: 'scope,
     {
-        unsafe { Self::_new::<T, F>(fun, builder) }
-    }
-
-    pub unsafe fn _new<T, F>(fun: F, mut builder: Builder) -> io::Result<Context>
-    where
-        F: FnMut(*mut ()) + 'static,
-        T: 'static,
-    {
-        let (layout, cx, fun, out) = Self::setup_alloc::<_, T>(fun);
+        let (layout, cx, fun, out) = Self::setup_alloc::<'scope, F, T>(fun);
 
         cx.as_ptr().write(ReprContext {
             registers: zeroed(),
@@ -79,27 +73,23 @@ impl ReprContext {
         Ok(Context { ptr: cx })
     }
 
-    unsafe fn setup_alloc<F, T>(
+    unsafe fn setup_alloc<'scope, F, T>(
         fun: F,
-    ) -> (
-        Layout,
-        NonNull<ReprContext>,
-        *mut dyn FnMut(*mut ()),
-        *mut dyn Any,
-    )
+    ) -> (Layout, NonNull<Self>, *mut dyn FnMut(*mut ()), *mut ())
     where
-        F: FnMut(*mut ()) + 'static,
-        T: 'static,
+        F: FnMut(*mut ()) + 'scope,
+        T: 'scope,
     {
         let (layout, fun_offset, out_offset) = Self::layout::<T, F>();
         let ptr = alloc(layout);
         let ptr = NonNull::new(ptr).unwrap();
         let fun_alloc = ptr.as_ptr().add(fun_offset) as *mut F;
         fun_alloc.write(fun);
-        let out_alloc =
-            ptr.as_ptr()
-                .add(out_offset)
-                .cast::<Result<T, Box<dyn Any + Send + 'static>>>() as *mut dyn Any;
+
+        let fun_alloc: *mut (dyn FnMut(*mut ()) + 'scope) = fun_alloc as _;
+        let fun_alloc: *mut dyn FnMut(*mut ()) = fun_alloc as _;
+
+        let out_alloc = ptr.as_ptr().add(out_offset).cast();
 
         (layout, ptr.cast(), fun_alloc, out_alloc)
     }
@@ -114,7 +104,7 @@ impl ReprContext {
     }
 
     pub fn for_os_thread() -> Context {
-        let cx = Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap();
+        let cx = unsafe { Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap() };
         cx.lifecycle.store(OS_THREAD, Ordering::Release);
         cx
     }

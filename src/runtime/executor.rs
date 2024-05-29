@@ -132,14 +132,14 @@ impl Executor {
     }
 
     pub fn push(&self, thread: UThread) {
-        if fastrand::u8(0..6) == 0 {
+        if fastrand::u8(0..12) == 0 {
             return dbg!(self.injector.push(thread));
         }
 
         let worker = self.worker();
 
         if worker.len() < MAX_WORK_PER_WORKER {
-            return dbg!(worker.push(thread));
+            return worker.push(thread);
         }
 
         dbg!(self.injector.push(thread))

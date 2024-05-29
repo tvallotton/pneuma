@@ -76,8 +76,8 @@ pub struct JoinHandle<T> {
 impl<T> JoinHandle<T> {
     pub(crate) fn new<F>(f: F, builder: Builder) -> io::Result<Self>
     where
-        F: FnOnce() -> T + 'static,
-        T: 'static,
+        F: FnOnce() -> T + Send + 'static,
+        T: Send + 'static,
     {
         let cx = Context::new(f, builder)?;
         let thread = UThread { cx };
@@ -96,6 +96,21 @@ impl<T> JoinHandle<T> {
     pub fn thread(&self) -> &UThread {
         &self.thread
     }
+
+    /// Checks if the associated thread has finished running its main function.
+    ///
+    /// `is_finished` supports implementing a non-blocking join operation, by checking
+    /// `is_finished`, and calling `join` if it returns `false`. This function does not block. To
+    /// block while waiting on the thread to finish, use [`join`][Self::join].
+    ///
+    /// This might return `true` for a brief moment after the thread's main
+    /// function has returned, but before the thread itself has stopped running.
+    /// However, once this returns `true`, [`join`][Self::join] can be expected
+    /// to return quickly, without blocking for any significant amount of time.
+    pub fn is_finished(&self) -> bool {
+        self.thread.cx.lifecycle.load(Ordering::Relaxed) == FINISHED
+    }
+
     #[allow(unused_must_use)]
     pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {
         loop {

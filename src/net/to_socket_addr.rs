@@ -270,8 +270,8 @@ where
         return err;
     }
 
-    return Err(Error::new(
+    Err(Error::new(
         ErrorKind::InvalidInput,
         "could not resolve to any addresses",
-    ));
+    ))
 }

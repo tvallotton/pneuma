@@ -27,7 +27,14 @@ impl Context {
     pub fn new<T, F>(f: F, builder: Builder) -> io::Result<Context>
     where
         F: FnOnce() -> T + 'static,
-        T: 'static,
+        T: Send + 'static,
+    {
+        unsafe { Self::new_unchecked(f, builder) }
+    }
+
+    pub unsafe fn new_unchecked<T, F>(f: F, builder: Builder) -> io::Result<Context>
+    where
+        F: FnOnce() -> T,
     {
         Ok(ReprContext::new::<T, _>(type_errased(f), builder)?.setup_registers())
     }
@@ -114,10 +121,10 @@ impl Context {
     }
 }
 
-fn type_errased<F, T>(f: F) -> impl FnMut(*mut ()) + 'static
+fn type_errased<'a, F, T>(f: F) -> impl FnMut(*mut ()) + 'a
 where
-    F: FnOnce() -> T + 'static,
-    T: 'static,
+    F: FnOnce() -> T + 'a,
+    T: 'a,
 {
     let mut f = Some(f);
     move |out: *mut ()| {

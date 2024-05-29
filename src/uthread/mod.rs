@@ -8,6 +8,7 @@ use std::fmt;
 use std::sync::atomic::Ordering::*;
 
 pub use builder::Builder;
+pub use scoped::{scope, Scope, ScopedJoinHandle};
 pub use yield_now::yield_now;
 
 mod builder;
@@ -16,6 +17,7 @@ mod join_handle;
 mod lifecycle;
 mod registers;
 mod repr_context;
+mod scoped;
 mod thread_id;
 mod yield_now;
 

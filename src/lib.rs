@@ -9,6 +9,12 @@
 //! # UThreads
 //!
 //! Pneuma offers uthreads, which are lightweight stackful coroutines.
+//! Spawning a uthread is significatly cheaper than spawning a kernel thread.
+//! Additionally, context switching between them does not require a change of the address space.
+//!
+//!
+//!
+//!
 //!
 //!
 #![allow(clippy::option_map_unit_fn)]
