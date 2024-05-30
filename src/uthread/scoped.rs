@@ -1,19 +1,26 @@
-// pub use std::thread::scope
-
 use pneuma::uthread::{current, Builder, JoinHandle, UThread};
 use std::{
     any::Any,
     fmt, io,
     marker::PhantomData,
+    mem,
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
         Arc,
     },
 };
+use tokio::io::unix::TryIoError;
 
-use super::Context;
-// use std::thread::scope
+use crate::uthread;
+
+use super::{
+    lifecycle::{FINISHED, RUNNING, TAKEN},
+    Context,
+};
+
+const PANIC_FLAG_JOIN_HANDLE_SHOULD_NOTIFY: u8 = 1;
+const PANIC_FLAG_UTHREAD_SHOULD_NOTIFY: u8 = 2;
 
 /// A scope to spawn scoped threads in.
 ///
@@ -27,7 +34,7 @@ pub struct Scope<'scope, 'env: 'scope> {
     /// Without invariance, this would compile fine but be unsound:
     ///
     /// ```compile_fail,E0373
-    /// std::thread::scope(|s| {
+    /// pneuma::uthread::scope(|s| {
     ///     s.spawn(|| {
     ///         let a = String::from("abcd");
     ///         s.spawn(|| println!("{a:?}")); // might run after `a` is dropped
@@ -43,11 +50,12 @@ pub struct Scope<'scope, 'env: 'scope> {
 /// See [`Scope::spawn`] for details.
 
 pub struct ScopedJoinHandle<'scope, T> {
-    pub(crate) join_handle: JoinHandle<T>,
-    pub(crate) marker: PhantomData<&'scope T>,
+    pub(crate) join_handle: Option<JoinHandle<T>>,
+    pub(crate) scope: Arc<ScopeData>,
+    pub(crate) marker: PhantomData<&'scope ()>,
 }
 
-pub(super) struct ScopeData {
+pub(crate) struct ScopeData {
     num_running_threads: AtomicUsize,
     a_thread_panicked: AtomicBool,
     main_thread: UThread,
@@ -75,7 +83,7 @@ impl ScopeData {
 }
 
 impl<'scope, T> ScopedJoinHandle<'scope, T> {
-    pub(crate) fn new<F>(f: F, builder: Builder) -> io::Result<Self>
+    pub(crate) fn new<'env, F>(scope: Arc<ScopeData>, f: F, builder: Builder) -> io::Result<Self>
     where
         F: FnOnce() -> T + 'scope,
         T: 'scope,
@@ -84,11 +92,11 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
         let thread = UThread { cx };
         thread.unpark();
         let _ph = PhantomData;
+        let join_handle = Some(JoinHandle { thread, _ph });
         let marker = PhantomData;
-        let join_handle = JoinHandle { thread, _ph };
-
         Ok(ScopedJoinHandle {
             join_handle,
+            scope,
             marker,
         })
     }
@@ -115,14 +123,13 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
     /// uthread::scope(|s| {
     ///     let t = s.spawn(|| -> () {
     ///         panic!("oh no");
-    ///         
     ///     });
-    ///     t.join()
+    ///     t.try_join();
     /// });
     /// ```
 
-    pub fn join(self) -> T {
-        self.join_handle.join()
+    pub fn join(mut self) -> T {
+        self.join_handle.take().unwrap().join()
     }
     /// Extracts a handle to the underlying thread.
     ///
@@ -140,7 +147,7 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
     /// ```
 
     pub fn thread(&self) -> &UThread {
-        self.join_handle.thread()
+        self.join_handle.as_ref().unwrap().thread()
     }
 
     /// Checks if the associated thread has finished running its main function.
@@ -155,12 +162,50 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
     /// to return quickly, without blocking for any significant amount of time.
 
     pub fn is_finished(&self) -> bool {
-        self.join_handle.is_finished()
+        self.join_handle.as_ref().unwrap().is_finished()
     }
 
-    #[allow(unused_must_use)]
-    pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {
-        self.join_handle.try_join()
+    pub fn try_join(mut self) -> Result<T, Box<dyn Any + Send + 'static>> {
+        self.join_handle.take().unwrap().try_join()
+    }
+
+    pub fn _drop(&mut self) -> Option<()> {
+        let lifecycle = self
+            .join_handle
+            .as_ref()?
+            .thread
+            .cx
+            .lifecycle
+            .load(Ordering::Acquire);
+
+        if lifecycle == TAKEN {
+            return None;
+        }
+
+        let Err(_) = self
+            .join_handle
+            .as_ref()?
+            .thread
+            .cx
+            .panic_flag
+            .compare_exchange(
+                0,
+                PANIC_FLAG_UTHREAD_SHOULD_NOTIFY,
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+        else {
+            return None;
+        };
+
+        self.scope.a_thread_panicked.store(true, Ordering::Relaxed);
+        None
+    }
+}
+
+impl<'scope, T> Drop for ScopedJoinHandle<'scope, T> {
+    fn drop(&mut self) {
+        self._drop();
     }
 }
 
@@ -185,12 +230,12 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
 /// # Example
 ///
 /// ```
-/// use std::thread;
+/// use pneuma::uthread;
 ///
 /// let mut a = vec![1, 2, 3];
 /// let mut x = 0;
 ///
-/// thread::scope(|s| {
+/// uthread::scope(|s| {
 ///     s.spawn(|| {
 ///         println!("hello from the first scoped thread");
 ///         // We can borrow `a` here.
@@ -249,7 +294,7 @@ where
 
     // Wait until all the threads are finished.
     while scope.data.num_running_threads.load(Ordering::Acquire) != 0 {
-        pneuma::uthread::park();
+        pneuma::uthread::park().unwrap();
     }
 
     // Throw any panic from `f`, or the return value of `f` if no thread panicked.
@@ -314,26 +359,26 @@ impl Builder {
     /// # Example
     ///
     /// ```
-    /// use std::thread;
+    /// use pneuma::uthread;
     ///
     /// let mut a = vec![1, 2, 3];
     /// let mut x = 0;
     ///
-    /// thread::scope(|s| {
-    ///     thread::Builder::new()
+    /// uthread::scope(|s| {
+    ///     uthread::Builder::new()
     ///         .name("first".to_string())
     ///         .spawn_scoped(s, ||
     ///     {
-    ///         println!("hello from the {:?} scoped thread", thread::current().name());
+    ///         println!("hello from the {:?} scoped thread", uthread::current().name());
     ///         // We can borrow `a` here.
     ///         dbg!(&a);
     ///     })
     ///     .unwrap();
-    ///     thread::Builder::new()
+    ///     uthread::Builder::new()
     ///         .name("second".to_string())
     ///         .spawn_scoped(s, ||
     ///     {
-    ///         println!("hello from the {:?} scoped thread", thread::current().name());
+    ///         println!("hello from the {:?} scoped thread", uthread::current().name());
     ///         // We can even mutably borrow `x` here,
     ///         // because no other threads are using it.
     ///         x += a[0] + a[2];
@@ -349,7 +394,7 @@ impl Builder {
 
     pub fn spawn_scoped<'scope, 'env, F, T>(
         self,
-        scope: &'scope Scope<'scope, 'env>,
+        scope: &Scope<'scope, 'env>,
         f: F,
     ) -> io::Result<ScopedJoinHandle<'scope, T>>
     where
@@ -357,17 +402,44 @@ impl Builder {
         T: Send + 'scope,
     {
         scope.data.increment_num_running_threads();
-        ScopedJoinHandle::new(
-            || {
-                let res = catch_unwind(AssertUnwindSafe(f));
-                scope.data.decrement_num_running_threads(res.is_err());
-                match res {
-                    Ok(t) => t,
-                    Err(err) => resume_unwind(err),
+
+        struct PanicGuard {
+            scope: Arc<ScopeData>,
+        }
+
+        impl Drop for PanicGuard {
+            fn drop(&mut self) {
+                if !std::thread::panicking() {
+                    self.scope.decrement_num_running_threads(false);
+                    return;
                 }
-            },
-            self,
-        )
+                let uthread = uthread::current();
+
+                let report_immediately = uthread
+                    .cx
+                    .panic_flag
+                    .compare_exchange(
+                        0,
+                        PANIC_FLAG_JOIN_HANDLE_SHOULD_NOTIFY,
+                        Ordering::Release,
+                        Ordering::Relaxed,
+                    )
+                    .is_err();
+                dbg!(report_immediately);
+                self.scope.decrement_num_running_threads(report_immediately);
+            }
+        }
+
+        let panic_guard = PanicGuard {
+            scope: scope.data.clone(),
+        };
+
+        let func = move || {
+            let _panic_guard = panic_guard;
+            f()
+        };
+
+        ScopedJoinHandle::new(scope.data.clone(), func, self)
     }
 }
 

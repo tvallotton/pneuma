@@ -80,6 +80,7 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
     } else {
         raw_errln!("error: segmentation fault");
     }
+    std::process::abort();
 }
 
 /// Unbuffered, unsynchronized writer to stderr.

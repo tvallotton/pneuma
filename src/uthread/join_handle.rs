@@ -111,7 +111,6 @@ impl<T> JoinHandle<T> {
         self.thread.cx.lifecycle.load(Ordering::Relaxed) == FINISHED
     }
 
-    #[allow(unused_must_use)]
     pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {
         loop {
             let lifecycle = &self.thread.cx.lifecycle;

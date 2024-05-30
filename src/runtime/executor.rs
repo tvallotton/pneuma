@@ -133,7 +133,7 @@ impl Executor {
 
     pub fn push(&self, thread: UThread) {
         if fastrand::u8(0..12) == 0 {
-            return dbg!(self.injector.push(thread));
+            return self.injector.push(thread);
         }
 
         let worker = self.worker();
@@ -142,7 +142,7 @@ impl Executor {
             return worker.push(thread);
         }
 
-        dbg!(self.injector.push(thread))
+        self.injector.push(thread)
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {

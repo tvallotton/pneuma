@@ -1,4 +1,4 @@
-use pneuma::net::{TcpStream};
+use pneuma::net::TcpStream;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener};
 use std::time::Duration;

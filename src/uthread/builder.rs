@@ -71,7 +71,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             name: None,
-            stack_size: 32 * 1024,
+            stack_size: 64 * 1024,
         }
     }
 

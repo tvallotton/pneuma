@@ -31,6 +31,8 @@ pub struct ReprContext {
 
     pub is_running: AtomicBool,
 
+    pub panic_flag: AtomicU8,
+
     pub refcount: AtomicU64,
 
     pub join_waker: Mutex<Option<UThread>>,
@@ -62,6 +64,7 @@ impl ReprContext {
             lifecycle: NEW.into(),
             is_queued: false.into(),
             is_running: false.into(),
+            panic_flag: 0.into(),
             refcount: 1.into(),
             join_waker: Mutex::default(),
             name: builder.name.take(),
