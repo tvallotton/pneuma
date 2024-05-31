@@ -1,13 +1,7 @@
 pub use std::time::Duration;
 
+use crate::reactor::op;
 
-
-pub struct Clock {
-
-    
-}
-
-pub fn sleep(_dur: Duration) {
-    
-    todo!()
+pub fn sleep(dur: Duration) {
+    op::sleep(dur).unwrap();
 }

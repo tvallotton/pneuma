@@ -20,7 +20,8 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     let rt = pneuma::runtime::current();
     let sqe = sqe.user_data(unsafe { transmute(thread.clone()) });
 
-    let io_uring = &mut rt.reactor.reactor.lock().unwrap().io_uring;
+    let mut guard = rt.reactor.reactor.lock().unwrap();
+    let io_uring = &mut guard.io_uring;
 
     thread.cx.io_uring_result.store(i64::MAX, Ordering::Relaxed);
 
@@ -31,11 +32,12 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
         }
     }
 
+    drop(guard);
     loop {
         let result = thread.cx.io_uring_result.load(Ordering::Relaxed);
 
         if result == i64::MAX {
-            uthread::park()?;
+            uthread::park();
             continue;
         }
 

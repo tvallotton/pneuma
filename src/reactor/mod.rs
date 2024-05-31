@@ -42,7 +42,7 @@ impl Reactor {
         // Register io-uring on epoll
         poll.registry().register(
             &mut SourceFd(&io_uring.as_raw_fd()),
-            Token(usize::MAX),
+            Token(0),
             Interest::READABLE,
         )?;
 
@@ -103,8 +103,13 @@ impl Inner {
     pub fn unpark_mio(&mut self) {
         let Inner { events, .. } = self;
         for event in events.iter() {
+            if event.token().0 == 0 {
+                continue;
+            }
             let uthread: &UThread = unsafe { transmute(&event.token().0) };
+            dbg!();
             uthread.unpark();
+            dbg!();
         }
     }
 

@@ -1,7 +1,7 @@
 // #![feature(maybe_uninit_uninit_array, core_io_borrowed_buf)]
 // use std::io::prelude::*;
 
-// use pneuma::fs::{self, File,  OpenOptions};
+// use pneuma::fs::{self, File, OpenOptions};
 // use std::env;
 // use std::io::{BorrowedBuf, ErrorKind, SeekFrom};
 // use std::mem::MaybeUninit;
@@ -31,7 +31,6 @@
 
 // use std::path::PathBuf;
 
-
 // pub struct TempDir(PathBuf);
 
 // impl TempDir {
@@ -51,12 +50,11 @@
 //         // Gee, seeing how we're testing the fs module I sure hope that we
 //         // at least implement this correctly!
 //         let TempDir(ref p) = *self;
-//         let result = std:: fs::remove_dir_all(p);
+//         let result = std::fs::remove_dir_all(p);
 //         // Avoid panicking while panicking as this causes the process to
 //         // immediately abort, without displaying test results.
 //         if !thread::panicking() {
 //             result.unwrap();
-            
 //         }
 //     }
 // }
@@ -453,7 +451,6 @@
 //     check!(fs::remove_file(&filename));
 // }
 
-
 // #[test]
 // fn file_test_stat_is_correct_on_is_file() {
 //     let tmpdir = tmpdir();
@@ -473,7 +470,6 @@
 //     assert!(stat_res_meth.is_file());
 //     check!(fs::remove_file(filename));
 // }
-
 
 // #[test]
 // fn file_test_fileinfo_check_exists_before_and_after_file_creation() {
@@ -498,7 +494,6 @@
 //     assert_eq!(e.kind(), ErrorKind::AlreadyExists);
 // }
 
-
 // #[test]
 // fn symlinks_work() {
 //     let tmpdir = tmpdir();
@@ -521,7 +516,6 @@
 //     assert_eq!(v, b"foobar".to_vec());
 // }
 
-
 // #[test]
 // fn sync_doesnt_kill_anything() {
 //     let tmpdir = tmpdir();
@@ -534,7 +528,6 @@
 //     check!(file.sync_all());
 //     check!(file.sync_data());
 // }
-
 
 // #[test]
 // fn open_flavors() {
@@ -705,4 +698,3 @@
 //     let res = File::open("/path/that/does/not/exist");
 //     assert_eq!(res.err().unwrap().kind(), ErrorKind::NotFound);
 // }
-
