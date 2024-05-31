@@ -1,13 +1,13 @@
-pub use registration::Registration;
-use slab::Slab;
-use std::{io, sync::Mutex, time::Duration};
-
 use crate::uthread::UThread;
+pub use registered::Registered;
+use slab::Slab;
+use std::mem::transmute;
 #[cfg(target_os = "linux")]
 use std::sync::atomic::Ordering::Relaxed;
+use std::{io, sync::Mutex, time::Duration};
 
 pub mod nonblocking;
-mod registration;
+mod registered;
 pub mod uring;
 
 pub mod op {
@@ -103,18 +103,15 @@ impl Inner {
     pub fn unpark_mio(&mut self) {
         let Inner { events, .. } = self;
         for event in events.iter() {
-            let Some(uthread) = self.tokens.get(event.token().0) else {
-                continue;
-            };
+            let uthread: &UThread = unsafe { transmute(&event.token().0) };
             uthread.unpark();
         }
     }
+
     #[cfg(target_os = "linux")]
     pub fn unpark_uring(&mut self) {
-        use std::mem::transmute;
-
         for event in self.io_uring.completion() {
-            let uthread: UThread = unsafe{ transmute(event.user_data()) };
+            let uthread: UThread = unsafe { transmute(event.user_data()) };
             uthread
                 .cx
                 .io_uring_result

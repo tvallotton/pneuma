@@ -1,20 +1,19 @@
 use mio::Interest;
 use std::{
     fmt::Debug,
-    io::{self, Error, IoSlice, Read},
+    io::{self, Error, IoSlice},
     net::{Shutdown, SocketAddr},
     os::fd::AsRawFd,
     time::{Duration, Instant},
 };
 
-use crate::reactor::{nonblocking::nonblocking, Registration};
+use crate::reactor::{nonblocking::nonblocking, Registered};
 use pneuma::net::ToSocketAddrs;
 
 use super::to_socket_addr::try_each;
 
 pub struct TcpStream {
-    stream: mio::net::TcpStream,
-    registration: Registration,
+    registered: Registered<mio::net::TcpStream>,
 }
 
 impl TcpStream {
@@ -104,26 +103,22 @@ impl TcpStream {
         // * https://cr.yp.to/docs/connect.html
         // * https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
 
-        let mut stream = mio::net::TcpStream::connect(addr)?;
+        let stream = mio::net::TcpStream::connect(addr)?;
 
-        let registration =
-            Registration::register(&mut stream, Interest::READABLE | Interest::WRITABLE)?;
+        let registered = Registered::register(stream, Interest::READABLE | Interest::WRITABLE)?;
 
         let start = timeout.map(|_| Instant::now());
 
         loop {
             // If we hit an error while connecting return that error.
-            if let Ok(Some(err)) | Err(err) = stream.take_error() {
+            if let Ok(Some(err)) | Err(err) = registered.source.take_error() {
                 return Err(err);
             }
 
             // If we can get a peer address it means the stream is
             // connected.
-            let Err(err) = stream.peer_addr() else {
-                return Ok(TcpStream {
-                    stream,
-                    registration,
-                });
+            let Err(err) = registered.source.peer_addr() else {
+                return Ok(TcpStream { registered });
             };
 
             // `NotConnected` (`ENOTCONN`) means the socket not yet
@@ -160,7 +155,7 @@ impl TcpStream {
     /// # Ok(())}
     /// ```
     pub fn peer_addr(&self) -> std::io::Result<SocketAddr> {
-        self.stream.peer_addr()
+        self.stream().peer_addr()
     }
 
     /// Returns the socket address of the local half of this TCP connection.
@@ -178,7 +173,7 @@ impl TcpStream {
     /// # Ok(())}
     /// ```
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.stream.local_addr()
+        self.stream().local_addr()
     }
 
     /// Gets the value of the `TCP_NODELAY` option on this socket.
@@ -196,7 +191,7 @@ impl TcpStream {
     /// assert_eq!(stream.nodelay().unwrap_or(false), true);
     /// ```
     pub fn nodelay(&self) -> io::Result<bool> {
-        self.stream.nodelay()
+        self.stream().nodelay()
     }
 
     /// Sets the value of the `TCP_NODELAY` option on this socket.
@@ -217,7 +212,7 @@ impl TcpStream {
     /// stream.set_nodelay(true).expect("set_nodelay call failed");
     /// ```
     pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
-        self.stream.set_nodelay(nodelay)
+        self.stream().set_nodelay(nodelay)
     }
 
     /// Shuts down the read, write, or both halves of this connection.
@@ -244,25 +239,27 @@ impl TcpStream {
     /// # Ok(())}
     /// ```
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
-        self.stream.shutdown(how)
+        self.stream().shutdown(how)
     }
 
     pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
-        nonblocking(|| self.stream.peek(buf), None)
+        nonblocking(|| self.stream().peek(buf), None)
+    }
+
+    fn stream(&self) -> &mio::net::TcpStream {
+        &self.registered.source
     }
 }
 
 impl io::Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.registration
-            .add(&mut self.stream, Interest::WRITABLE)?;
-        nonblocking(|| self.stream.write(buf), None)
+        self.registered.add(Interest::WRITABLE)?;
+        nonblocking(|| self.stream().write(buf), None)
     }
 
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        self.registration
-            .add(&mut self.stream, Interest::WRITABLE)?;
-        nonblocking(|| self.stream.write_vectored(bufs), None)
+        self.registered.add(Interest::WRITABLE)?;
+        nonblocking(|| self.stream().write_vectored(bufs), None)
     }
 
     #[inline]
@@ -273,25 +270,23 @@ impl io::Write for TcpStream {
 
 impl io::Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.registration
-            .add(&mut self.stream, Interest::READABLE)?;
-        nonblocking(|| self.stream.read(buf), None)
+        self.registered.add(Interest::READABLE)?;
+        nonblocking(|| self.stream().read(buf), None)
     }
     fn read_vectored(&mut self, bufs: &mut [io::IoSliceMut<'_>]) -> io::Result<usize> {
-        self.registration
-            .add(&mut self.stream, Interest::READABLE)?;
-        nonblocking(|| self.stream.read_vectored(bufs), None)
+        self.registered.add(Interest::READABLE)?;
+        nonblocking(|| self.stream().read_vectored(bufs), None)
     }
 }
 
 impl AsRawFd for TcpStream {
     fn as_raw_fd(&self) -> std::os::unix::prelude::RawFd {
-        self.stream.as_raw_fd()
+        self.stream().as_raw_fd()
     }
 }
 
 impl Debug for TcpStream {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.stream.fmt(f)
+        self.stream().fmt(f)
     }
 }
