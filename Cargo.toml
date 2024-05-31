@@ -29,3 +29,4 @@ io-uring = "0.6.2"
 
 [dev-dependencies]
 pneuma = { path = ".", features = ["full", "unsafe_work_stealing"] }
+rand = "0.8.5"

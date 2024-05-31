@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::reactor::{op::nonblocking, Registration};
+use crate::reactor::{nonblocking::nonblocking, Registration};
 use pneuma::net::ToSocketAddrs;
 
 use super::to_socket_addr::try_each;

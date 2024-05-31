@@ -6,7 +6,7 @@ use std::{
     mem::zeroed,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU64, AtomicU8, Ordering},
         Mutex,
     },
 };
@@ -32,6 +32,9 @@ pub struct ReprContext {
     pub is_running: AtomicBool,
 
     pub panic_flag: AtomicU8,
+
+    #[cfg(target_os = "linux")]
+    pub io_uring_result: AtomicI64,
 
     pub refcount: AtomicU64,
 
@@ -72,6 +75,8 @@ impl ReprContext {
             layout,
             fun,
             out,
+            #[cfg(target_os = "linux")]
+            io_uring_result: 0.into(),
         });
         Ok(Context { ptr: cx })
     }

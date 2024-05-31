@@ -1,11 +1,13 @@
 use std::{
+    fmt::Debug,
     io,
     net::{Ipv4Addr, Ipv6Addr},
     os::fd::{AsRawFd, FromRawFd},
+    sync::Mutex,
     time::Duration,
 };
 
-use crate::reactor::{op::nonblocking, Registration};
+use crate::reactor::{nonblocking::nonblocking, Registration};
 use mio::Interest;
 use std::net::SocketAddr;
 
@@ -14,7 +16,8 @@ use super::to_socket_addr::{try_each, ToSocketAddrs};
 pub struct UdpSocket {
     socket: mio::net::UdpSocket,
     _registration: Registration,
-    timeout: Option<Duration>,
+    read_timeout: Option<Duration>,
+    write_timeout: Option<Duration>,
 }
 
 impl UdpSocket {
@@ -31,20 +34,21 @@ impl UdpSocket {
         Ok(UdpSocket {
             socket,
             _registration,
-            timeout: None,
+            read_timeout: None,
+            write_timeout: None,
         })
     }
 
-    pub fn connect(&mut self, addr: SocketAddr) -> io::Result<()> {
-        nonblocking(|| self.socket.connect(addr), None)
+    pub fn connect<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
+        try_each(addr, |addr| nonblocking(|| self.socket.connect(addr), None))
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.socket.local_addr()
     }
 
-    pub fn send_to(&self, buf: &[u8], target: SocketAddr) -> io::Result<usize> {
-        nonblocking(|| self.socket.send_to(buf, target), None)
+    pub fn send_to(&self, buf: &[u8], target: &SocketAddr) -> io::Result<usize> {
+        nonblocking(|| self.socket.send_to(buf, *target), None)
     }
 
     pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
@@ -52,11 +56,19 @@ impl UdpSocket {
     }
 
     pub fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
-        nonblocking(|| self.socket.recv(buf), self.timeout)
+        nonblocking(|| self.socket.recv(buf), self.read_timeout)
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        nonblocking(|| self.socket.recv_from(buf), self.timeout)
+        nonblocking(|| self.socket.recv_from(buf), self.read_timeout)
+    }
+
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        self.socket.peer_addr()
+    }
+
+    pub fn peek_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
+        nonblocking(|| self.socket.peek_from(buf), None)
     }
 
     /// Sets the value of the `SO_BROADCAST` option for this socket.
@@ -317,12 +329,26 @@ impl UdpSocket {
 
     pub fn set_read_timeout(&mut self, dur: Option<Duration>) -> io::Result<()> {
         self.as_std(|s| s.set_read_timeout(dur))?;
-        self.timeout = dur;
+        self.read_timeout = dur;
         Ok(())
     }
 
-    pub fn read_timeout(&mut self) -> io::Result<Option<Duration>> {
-        Ok(self.timeout)
+    pub fn set_write_timeout(&mut self, dur: Option<Duration>) -> io::Result<()> {
+        self.as_std(|s| s.set_write_timeout(dur))?;
+        self.write_timeout = dur;
+        Ok(())
+    }
+
+    pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
+        Ok(self.read_timeout)
+    }
+
+    pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
+        Ok(self.write_timeout)
+    }
+
+    pub fn peek(&self, buf: &mut [u8]) -> Result<usize, io::Error> {
+        self.socket.peek(buf)
     }
 
     pub(crate) fn as_std<T>(&self, mut f: impl FnMut(&mut std::net::UdpSocket) -> T) -> T {
@@ -331,5 +357,11 @@ impl UdpSocket {
         let out = f(&mut socket);
         std::mem::forget(socket);
         out
+    }
+}
+
+impl Debug for UdpSocket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_std(|s| Debug::fmt(s, f))
     }
 }

@@ -246,7 +246,7 @@ fn question_with_udp(
     let mut buf = [0; 512];
 
     for _ in 0..resolv.attempts {
-        socket.send_to(query, foreign_addr)?;
+        socket.send_to(query, &foreign_addr)?;
 
         // Wait for `timeout` seconds for a response.
         let timeout = Duration::from_secs(resolv.timeout.into());

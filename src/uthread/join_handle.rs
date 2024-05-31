@@ -1,4 +1,11 @@
-use std::{any::Any, io, marker::PhantomData, panic::resume_unwind, sync::atomic::Ordering};
+use std::{
+    any::Any,
+    future::{Future, IntoFuture},
+    io,
+    marker::PhantomData,
+    panic::resume_unwind,
+    sync::atomic::Ordering,
+};
 
 use super::{
     builder::Builder,
@@ -111,6 +118,7 @@ impl<T> JoinHandle<T> {
         self.thread.cx.lifecycle.load(Ordering::Relaxed) == FINISHED
     }
 
+    #[allow(unused_must_use)]
     pub fn try_join(self) -> Result<T, Box<dyn Any + Send + 'static>> {
         loop {
             let lifecycle = &self.thread.cx.lifecycle;

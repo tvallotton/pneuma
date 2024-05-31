@@ -18,6 +18,7 @@ fn unhandled_panic_drop_before_panic() {
         let t = s.spawn(|| {
             panic!("oh no");
         });
+
         drop(t);
     });
 }
@@ -35,9 +36,10 @@ fn unhandled_panic_drop_after_panic() {
 
         uthread::park().unwrap();
 
-        for _ in 0..10 {
+        while !t.is_finished() {
             uthread::yield_now();
         }
+
         drop(t);
     });
 }
@@ -65,7 +67,7 @@ fn handled_panic_join_after_panic() {
 
         uthread::park().unwrap();
 
-        for _ in 0..10 {
+        while !t.is_finished() {
             uthread::yield_now();
         }
 

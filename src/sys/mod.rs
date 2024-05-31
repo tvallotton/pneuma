@@ -4,6 +4,7 @@ use pneuma::uthread::{Context, ReprContext};
 
 pub(crate) mod signal_stack;
 pub(crate) mod stack;
+pub(crate) mod statx;
 
 #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
 std::arch::global_asm!(include_str!("asm/aarch64-linux.s"));

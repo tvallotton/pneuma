@@ -3,9 +3,17 @@ use slab::Slab;
 use std::{io, sync::Mutex, time::Duration};
 
 use crate::uthread::UThread;
+#[cfg(target_os = "linux")]
+use std::sync::atomic::Ordering::Relaxed;
 
-pub mod op;
+pub mod nonblocking;
 mod registration;
+pub mod uring;
+
+pub mod op {
+    pub use super::nonblocking::*;
+    pub use super::uring::*;
+}
 
 pub struct Reactor {
     pub reactor: Mutex<Inner>,
@@ -23,10 +31,21 @@ pub struct Inner {
 impl Reactor {
     #[cfg(target_os = "linux")]
     pub fn new() -> io::Result<Self> {
+        use mio::{unix::SourceFd, Interest, Token};
+        use std::os::fd::AsRawFd;
+
         let io_uring = io_uring::IoUring::new(256)?;
         let poll = mio::Poll::new()?;
         let events = mio::Events::with_capacity(256);
         let tokens = Slab::new();
+
+        // Register io-uring on epoll
+        poll.registry().register(
+            &mut SourceFd(&io_uring.as_raw_fd()),
+            Token(usize::MAX),
+            Interest::READABLE,
+        )?;
+
         let reactor = Inner {
             poll,
             events,
@@ -62,20 +81,46 @@ impl Reactor {
     }
 
     fn submit(&self, timeout: Option<Duration>) -> io::Result<()> {
-        let reactor = &mut *self.reactor.lock().unwrap();
-        #[cfg(target_os = "linux")]
-        reactor.io_uring.submit()?;
-        let Inner { poll, events, .. } = reactor;
-        poll.poll(events, timeout)?;
+        self.reactor.lock().unwrap().submit(timeout)
+    }
+}
 
+impl Inner {
+    pub fn submit(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+        #[cfg(target_os = "linux")]
+        self.io_uring.submit()?;
+
+        self.poll.poll(&mut self.events, timeout)?;
+
+        #[cfg(target_os = "linux")]
+        self.unpark_uring();
+
+        self.unpark_mio();
+
+        Ok(())
+    }
+
+    pub fn unpark_mio(&mut self) {
+        let Inner { events, .. } = self;
         for event in events.iter() {
-            let Some(uthread) = reactor.tokens.get(event.token().0) else {
+            let Some(uthread) = self.tokens.get(event.token().0) else {
                 continue;
             };
             uthread.unpark();
         }
+    }
+    #[cfg(target_os = "linux")]
+    pub fn unpark_uring(&mut self) {
+        use std::mem::transmute;
 
-        Ok(())
+        for event in self.io_uring.completion() {
+            let uthread: UThread = unsafe{ transmute(event.user_data()) };
+            uthread
+                .cx
+                .io_uring_result
+                .store(event.result() as i64, Relaxed);
+            uthread.unpark();
+        }
     }
 }
 
