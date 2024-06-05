@@ -1,3 +1,12 @@
+//! User-level threads.
+//!
+//! ## The threading model
+//!
+//! An executing pneuma program consists of a small number of native OS threads (workers),
+//! and much bigger collection of user-level threads running on top those worker threads.
+//! UThreads can be named, and provide some built-in support for low-level synchronization.
+//!
+
 pub(crate) use context::Context;
 
 use self::lifecycle::OS_THREAD;
@@ -21,6 +30,25 @@ mod scoped;
 mod thread_id;
 mod yield_now;
 
+/// A handle to a thread.
+///
+/// Threads are represented via the `UThread` type, which you can get in one of
+/// two ways:
+///
+/// * By spawning a new uthread, e.g., using the [`uthread::spawn`][`spawn`]
+///   function, and calling [`uthread`][`JoinHandle::thread`] on the
+///   [`JoinHandle`].
+/// * By requesting the current thread, using the [`uthread::current`][`current`] function.
+///
+/// The [`uthread::current`][`current`] function is available even for threads not spawned
+/// by the APIs of this module.
+///
+/// There is usually no need to create a `Thread` struct yourself, one
+/// should instead use a function like `spawn` to create new threads, see the
+/// docs of [`Builder`] and [`spawn`] for more details.
+///
+///
+/// [`pneuma::uthread`]: uthread
 #[derive(Clone)]
 pub struct UThread {
     pub(crate) cx: Context,
@@ -175,10 +203,11 @@ pub fn current() -> UThread {
         .unwrap()
         .clone()
 }
-
+#[track_caller]
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
+
     pneuma::runtime::current().park()
 }
 

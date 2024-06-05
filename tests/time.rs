@@ -4,7 +4,8 @@ use pneuma::time::sleep;
 
 #[test]
 fn smoke_sleep() {
+    let dur = Duration::from_millis(50);
     let time = Instant::now();
-    sleep(Duration::from_millis(500));
-    dbg!(time.elapsed());
+    sleep(dur);
+    assert!(time.elapsed() >= dur);
 }

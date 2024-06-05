@@ -72,6 +72,7 @@ impl File {
     /// let f = File::open("foo.txt")?;
     /// # Ok(()) }
     /// ```
+    #[track_caller]
     pub fn open(path: impl AsRef<Path>) -> Result<File> {
         OpenOptions::new().read(true).open(path)
     }
@@ -94,6 +95,7 @@ impl File {
     /// let f = File::create("foo.txt")?;
     /// # Ok(()) }
     /// ```
+    #[track_caller]
     pub fn create<P: AsRef<Path>>(path: P) -> Result<File> {
         OpenOptions::new()
             .write(true)
@@ -296,7 +298,7 @@ impl File {
         File { fd }
     }
 
-    pub(crate) fn as_std<T>(&self, mut f: impl FnMut(& std::fs::File) -> T) -> T {
+    pub(crate) fn as_std<T>(&self, mut f: impl FnMut(&std::fs::File) -> T) -> T {
         let fd = self.fd;
         let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
         let out = f(&mut file);
@@ -304,14 +306,13 @@ impl File {
         out
     }
 
-        pub(crate) fn as_std_mut<T>(&mut self, mut f: impl FnMut(&mut std::fs::File) -> T) -> T {
+    pub(crate) fn as_std_mut<T>(&mut self, mut f: impl FnMut(&mut std::fs::File) -> T) -> T {
         let fd = self.fd;
         let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
         let out = f(&mut file);
         std::mem::forget(file);
         out
     }
-
 }
 
 /// Removes a file from the filesystem.
@@ -415,9 +416,8 @@ impl FileExt for File {
     }
 }
 
-
 impl Debug for File {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_std(|file|file.fmt(f))
+        self.as_std(|file| file.fmt(f))
     }
 }

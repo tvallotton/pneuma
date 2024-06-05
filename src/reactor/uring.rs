@@ -1,4 +1,5 @@
 use crate::uthread;
+use crate::utils::IgnorePoison;
 use io_uring::squeue;
 use io_uring::{
     opcode::{self, OpenAt, Statx},
@@ -20,28 +21,30 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     let rt = pneuma::runtime::current();
     let sqe = sqe.user_data(unsafe { transmute(thread.clone()) });
 
-    let mut guard = rt.reactor.reactor.lock().unwrap();
-    let io_uring = &mut guard.io_uring;
+    let mut io_uring = rt.reactor.uring.lock().ignore_poison();
 
     thread.cx.io_uring_result.store(i64::MAX, Ordering::Relaxed);
 
     unsafe {
         if io_uring.submission().push(&sqe).is_err() {
             io_uring.submit()?;
+
             io_uring.submission().push(&sqe).ok();
         }
     }
 
-    drop(guard);
+    drop(io_uring);
+
     loop {
         let result = thread.cx.io_uring_result.load(Ordering::Relaxed);
 
-        if result == i64::MAX {
+        if dbg!(result == i64::MAX) {
             uthread::park();
+
             continue;
         }
 
-        if result.is_negative() {
+        if dbg!(result.is_negative()) {
             return Err(Error::from_raw_os_error(-result as _));
         }
 
@@ -63,9 +66,7 @@ pub fn sleep(dur: Duration) -> io::Result<()> {
 
 #[inline]
 pub fn write(fd: &impl AsRawFd, buf: &[u8]) -> io::Result<usize> {
-    let sqe = opcode::Write::new(Fd(fd.as_raw_fd()), buf.as_ptr(), buf.len() as _).build();
-    let written = submit(sqe)?;
-    Ok(written as _)
+    write_at(fd.as_raw_fd(), buf, u64::MAX)
 }
 
 #[inline]
@@ -78,11 +79,14 @@ pub fn read_at(fd: i32, buf: &mut [u8], offset: u64) -> io::Result<usize> {
 }
 
 #[inline]
+#[track_caller]
 pub fn write_at(fd: i32, buf: &[u8], offset: u64) -> io::Result<usize> {
     let sqe = opcode::Write::new(Fd(fd.as_raw_fd()), buf.as_ptr(), buf.len() as _)
         .offset(offset)
         .build();
-    let written = submit(sqe)?;
+
+    let written = dbg!(submit(sqe))?;
+
     Ok(written as _)
 }
 
@@ -113,15 +117,14 @@ pub fn emit_uevent(fd: i32) -> io::Result<()> {
     write(&fd, &1u64.to_ne_bytes())?;
     Ok(())
 }
-
+#[track_caller]
 pub fn open_at(path: &CStr, flags: i32, mode: u32) -> io::Result<OwnedFd> {
     let sqe = OpenAt::new(Fd(libc::AT_FDCWD), path.as_ptr())
         .flags(flags)
         .mode(mode)
         .build();
-
     // Safety: the resource (pathname) is submitted
-    let read = submit(sqe)?;
+    let read = dbg!(submit(sqe))?;
     Ok(unsafe { OwnedFd::from_raw_fd(read) })
 }
 
@@ -146,15 +149,19 @@ pub fn statx(fd: i32, path: Option<CString>, flags: i32) -> io::Result<statx> {
     Ok(unsafe { statx.assume_init_read() })
 }
 
+#[track_caller]
 pub fn close(fd: i32) -> std::io::Result<i32> {
     let sqe = opcode::Close::new(Fd(fd.as_raw_fd())).build();
-    submit(sqe)
+
+    dbg!(submit(sqe))
 }
 
+#[track_caller]
 pub fn unlink_at(path: &CStr, flags: i32) -> std::io::Result<i32> {
     let sqe = opcode::UnlinkAt::new(Fd(libc::AT_FDCWD), path.as_ptr())
         .flags(flags)
         .build();
+
     submit(sqe)
 }
 

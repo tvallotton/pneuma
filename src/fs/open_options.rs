@@ -285,14 +285,18 @@ impl OpenOptions {
     /// [`NotFound`]: io::ErrorKind::NotFound
     /// [`Other`]: io::ErrorKind::Other
     /// [`PermissionDenied`]: io::ErrorKind::PermissionDenied
+    #[track_caller]
     pub fn open(&self, path: impl AsRef<Path>) -> Result<File> {
         let path = cstr(path)?;
+
         self._open(path)
     }
-
+    #[track_caller]
     fn _open(&self, path: CString) -> Result<File> {
         let flags = libc::O_CLOEXEC | self.access_mode()? | self.creation_mode()?;
+
         let fd = op::open_at(&path, flags, self.mode)?.into_raw_fd();
+
         Ok(File { fd })
     }
 

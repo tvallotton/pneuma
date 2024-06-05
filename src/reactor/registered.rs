@@ -2,7 +2,7 @@ use std::{io, mem::transmute};
 
 use mio::{event::Source, Interest, Token};
 
-use crate::uthread::UThread;
+use crate::{uthread::UThread, utils::IgnorePoison};
 
 pub struct Registered<S: Source> {
     pub source: S,
@@ -16,7 +16,7 @@ where
 {
     pub fn register(source: S, interests: mio::Interest) -> io::Result<Registered<S>> {
         let uthread = pneuma::uthread::current();
-        let reactor = pneuma::reactor::current().reactor.lock().unwrap();
+        dbg!("lock");
 
         let uthread: usize = unsafe { transmute(uthread) };
         let mut registration = Registered {
@@ -25,24 +25,32 @@ where
             interests,
         };
 
-        reactor
+        let res = pneuma::reactor::current()
+            .mio
+            .lock()
+            .ignore_poison()
             .poll
             .registry()
             .register(&mut registration.source, mio::Token(uthread), interests)
-            .map(|_| registration)
+            .map(|_| registration);
+        dbg!("release");
+        res
     }
 
     pub fn reregister(&mut self, interests: mio::Interest) -> io::Result<()> {
         let uthread: usize = unsafe { transmute(pneuma::uthread::current()) };
-        let reactor = pneuma::reactor::current().reactor.lock().unwrap();
+        dbg!("lock");
 
-        reactor
+        pneuma::reactor::current()
+            .mio
+            .lock()
+            .ignore_poison()
             .poll
             .registry()
             .reregister(&mut self.source, Token(uthread), interests)?;
 
         self.interests = interests;
-
+        dbg!("release");
         Ok(())
     }
 
@@ -64,9 +72,9 @@ where
 impl<S: Source> Drop for Registered<S> {
     fn drop(&mut self) {
         pneuma::reactor::current()
-            .reactor
+            .mio
             .lock()
-            .unwrap()
+            .ignore_poison()
             .poll
             .registry()
             .deregister(&mut self.source)

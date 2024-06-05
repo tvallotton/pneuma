@@ -1,5 +1,5 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
-
+use pneuma::utils::IgnorePoison;
 use std::{
     mem::replace,
     sync::{
@@ -50,7 +50,7 @@ impl Executor {
     }
 
     fn set_current(&self, with: UThread) -> UThread {
-        let mut current = self.current_thread().lock().unwrap();
+        let mut current = self.current_thread().lock().ignore_poison();
         replace(&mut *current, with)
     }
 
@@ -149,11 +149,11 @@ impl Executor {
         debug_assert!(cx.has_exited());
         let ReprContext { stack, .. } = unsafe { &mut *cx.ptr() };
         let stack = std::mem::take(stack);
-        self.unused_stacks.lock().unwrap().push(stack);
+        self.unused_stacks.lock().ignore_poison().push(stack);
     }
 
     pub(crate) fn stack(&self, stack_size: usize) -> Option<Stack> {
-        let mut stacks = self.unused_stacks.lock().unwrap();
+        let mut stacks = self.unused_stacks.lock().ignore_poison();
         let i = stacks.iter().position(|stack| stack.size >= stack_size)?;
         Some(stacks.swap_remove(i))
     }
