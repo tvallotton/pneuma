@@ -3,19 +3,17 @@ use std::{
     any::Any,
     fmt, io,
     marker::PhantomData,
-    mem,
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     sync::{
-        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
 };
-use tokio::io::unix::TryIoError;
 
 use pneuma::uthread;
 
 use super::{
-    lifecycle::{FINISHED, RUNNING, TAKEN},
+    lifecycle::TAKEN,
     Context,
 };
 

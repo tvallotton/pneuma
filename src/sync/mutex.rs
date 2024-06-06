@@ -1,11 +1,9 @@
-use pneuma::uthread::{current, park};
 use std::{
     collections::VecDeque,
     fmt::{self, Debug, Display, Formatter},
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     sync::PoisonError,
-    task::Waker,
 };
 
 use pneuma::{uthread::UThread, utils::IgnorePoison};

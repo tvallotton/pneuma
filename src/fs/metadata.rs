@@ -6,7 +6,6 @@ use pneuma::reactor::op;
 use pneuma::sys::statx::{statx, statx_timestamp};
 use std::ffi::CString;
 
-use std::fs::FileTimes;
 use std::io::{self, Error, Result};
 use std::os::linux::fs::MetadataExt;
 use std::path::Path;

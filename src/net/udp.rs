@@ -3,7 +3,6 @@ use std::{
     io,
     net::{Ipv4Addr, Ipv6Addr},
     os::fd::{AsRawFd, FromRawFd},
-    sync::Mutex,
     time::Duration,
 };
 

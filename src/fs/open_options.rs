@@ -4,7 +4,6 @@ use pneuma::fs::File;
 use pneuma::reactor::op;
 use std::ffi::CString;
 use std::io::{self, Error, Result};
-use std::os::fd::IntoRawFd;
 use std::path::Path;
 
 use super::cstr;

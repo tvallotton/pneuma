@@ -1,7 +1,6 @@
 use std::{
     ffi::CString,
-    io::{self, BufReader, BufWriter, Error, ErrorKind, Read, Result, Write},
-    os::unix::ffi::OsStringExt,
+    io::{self, Error, Result, Write},
     path::{Path, PathBuf},
 };
 

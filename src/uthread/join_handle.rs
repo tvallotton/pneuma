@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    future::{Future, IntoFuture},
     io,
     marker::PhantomData,
     panic::resume_unwind,

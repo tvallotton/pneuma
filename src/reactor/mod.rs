@@ -1,14 +1,9 @@
-use io_uring::types::Fixed;
-use mio::event::Event;
 use mio::Events;
 use pneuma::uthread::UThread;
 use pneuma::utils::IgnorePoison;
 pub use registered::Registered;
-use slab::Slab;
 #[cfg(target_os = "linux")]
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::TryLockError;
-use std::time::Instant;
 use std::{io, sync::Mutex, time::Duration};
 use std::{mem::transmute, sync::Condvar};
 

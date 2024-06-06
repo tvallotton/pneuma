@@ -6,7 +6,7 @@ use std::{
     mem::zeroed,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicBool, AtomicI32, AtomicI64, AtomicU64, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicU8, Ordering},
         Mutex,
     },
 };
