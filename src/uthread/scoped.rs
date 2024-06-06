@@ -12,7 +12,7 @@ use std::{
 };
 use tokio::io::unix::TryIoError;
 
-use crate::uthread;
+use pneuma::uthread;
 
 use super::{
     lifecycle::{FINISHED, RUNNING, TAKEN},
@@ -31,16 +31,7 @@ pub struct Scope<'scope, 'env: 'scope> {
     /// Invariance over 'scope, to make sure 'scope cannot shrink,
     /// which is necessary for soundness.
     ///
-    /// Without invariance, this would compile fine but be unsound:
-    ///
-    /// ```compile_fail,E0373
-    /// pneuma::uthread::scope(|s| {
-    ///     s.spawn(|| {
-    ///         let a = String::from("abcd");
-    ///         s.spawn(|| println!("{a:?}")); // might run after `a` is dropped
-    ///     });
-    /// });
-    /// ```
+    /// Without invariance, this would compile fine but be unsound.
     scope: PhantomData<&'scope mut &'scope ()>,
     env: PhantomData<&'env mut &'env ()>,
 }
@@ -113,7 +104,7 @@ impl<'scope, T> ScopedJoinHandle<'scope, T> {
     ///
     /// If the associated thread panics, [`Err`] is returned with the panic payload.
     ///
-    /// [atomic memory orderings]: crate::sync::atomic
+    /// [atomic memory orderings]: pneumasync::atomic
     ///
     /// # Examples
     ///
@@ -350,7 +341,7 @@ impl Builder {
     /// Unlike [`Scope::spawn`], this method yields an [`io::Result`] to
     /// capture any failure to create the thread at the OS level.
     ///
-    /// [`io::Result`]: crate::io::Result
+    /// [`io::Result`]: pneumaio::Result
     ///
     /// # Panics
     ///

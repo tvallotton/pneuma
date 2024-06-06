@@ -37,10 +37,10 @@ use super::dns::lookup;
 /// Addresses returned by the operating system that are not IP addresses are
 /// silently ignored.
 ///
-/// [`FromStr`]: crate::str::FromStr "std::str::FromStr"
-/// [`TcpStream`]: crate::net::TcpStream "net::TcpStream"
+/// [`FromStr`]: pneumastr::FromStr "std::str::FromStr"
+/// [`TcpStream`]: pneumanet::TcpStream "net::TcpStream"
 /// [`to_socket_addrs`]: ToSocketAddrs::to_socket_addrs
-/// [`UdpSocket`]: crate::net::UdpSocket "net::UdpSocket"
+/// [`UdpSocket`]: pneumanet::UdpSocket "net::UdpSocket"
 ///
 /// # Examples
 ///
@@ -111,7 +111,7 @@ use super::dns::lookup;
 /// let stream = TcpStream::connect((Ipv4Addr::new(127, 0, 0, 1), 443));
 /// ```
 ///
-/// [`TcpStream::connect`]: crate::net::TcpStream::connect
+/// [`TcpStream::connect`]: pneumanet::TcpStream::connect
 
 pub trait ToSocketAddrs {
     /// Returned iterator over socket addresses which this type may correspond

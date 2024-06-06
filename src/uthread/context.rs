@@ -10,7 +10,7 @@ use std::{
     sync::atomic::{self},
 };
 
-use crate::{runtime::current, sys};
+use pneuma::{runtime::current, sys};
 
 use super::{
     builder::Builder,

@@ -8,11 +8,14 @@ use libc::AT_FDCWD;
 use std::borrow::Cow;
 use std::ffi::{CStr, OsString};
 use std::fmt::Debug;
+use std::fs::FileTimes;
 use std::io::{self, Error, Result, Seek, SeekFrom};
 use std::mem::{forget, MaybeUninit};
-use std::os::fd::{AsFd, AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
+use std::os::fd::{AsFd, AsRawFd, FromRawFd, IntoRawFd};
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
+
+use pneuma::fd::OwnedFd;
 
 use super::{cstr, OpenOptions};
 
@@ -44,13 +47,7 @@ use super::{cstr, OpenOptions};
 /// # }
 /// ```
 pub struct File {
-    pub(crate) fd: i32,
-}
-
-impl Drop for File {
-    fn drop(&mut self) {
-        let _ = op::close(self.as_raw_fd());
-    }
+    pub(crate) fd: OwnedFd,
 }
 
 impl File {
@@ -295,11 +292,13 @@ impl File {
 
     pub fn from_std(file: std::fs::File) -> Self {
         let fd = file.into_raw_fd();
-        File { fd }
+        File {
+            fd: unsafe { OwnedFd::from_raw_fd(fd) },
+        }
     }
 
     pub(crate) fn as_std<T>(&self, mut f: impl FnMut(&std::fs::File) -> T) -> T {
-        let fd = self.fd;
+        let fd = self.fd.as_raw_fd();
         let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
         let out = f(&mut file);
         std::mem::forget(file);
@@ -307,11 +306,20 @@ impl File {
     }
 
     pub(crate) fn as_std_mut<T>(&mut self, mut f: impl FnMut(&mut std::fs::File) -> T) -> T {
-        let fd = self.fd;
+        let fd = self.fd.as_raw_fd();
         let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
         let out = f(&mut file);
         std::mem::forget(file);
         out
+    }
+
+    pub fn set_len(&self, size: u64) -> io::Result<()> {
+        // TODO: move this into a blocking threadpool
+        self.as_std(|file| file.set_len(size))
+    }
+
+    pub fn set_times(&self, times: FileTimes) -> io::Result<()> {
+        self.as_std(|file| file.set_times(times))
     }
 }
 
@@ -383,7 +391,7 @@ impl std::io::Read for File {
 
 impl IntoRawFd for File {
     fn into_raw_fd(self) -> std::os::fd::RawFd {
-        let fd = self.fd;
+        let fd = self.fd.as_raw_fd();
         forget(self);
         fd
     }
@@ -391,13 +399,15 @@ impl IntoRawFd for File {
 
 impl AsRawFd for File {
     fn as_raw_fd(&self) -> std::os::fd::RawFd {
-        self.fd
+        self.fd.as_raw_fd()
     }
 }
 
 impl FromRawFd for File {
     unsafe fn from_raw_fd(fd: std::os::fd::RawFd) -> Self {
-        File { fd }
+        File {
+            fd: OwnedFd::from_raw_fd(fd),
+        }
     }
 }
 
@@ -409,10 +419,10 @@ impl Seek for File {
 
 impl FileExt for File {
     fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
-        op::read_at(self.fd, buf, offset)
+        op::read_at(self.fd.as_raw_fd(), buf, offset)
     }
     fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
-        op::write_at(self.fd, buf, offset)
+        op::write_at(self.fd.as_raw_fd(), buf, offset)
     }
 }
 

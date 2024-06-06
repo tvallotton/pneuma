@@ -3,8 +3,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering::Release},
 };
 
-use crate::{reactor::Reactor, sys::signal_stack::SignalStack};
 pub(crate) use globals::current;
+use pneuma::{reactor::Reactor, sys::signal_stack::SignalStack};
 
 use executor::Executor;
 mod executor;
@@ -33,21 +33,17 @@ impl Runtime {
     }
 
     pub fn park(&self) -> io::Result<()> {
-        
         self.increment_tick()?;
 
         // NOTE: we might never return
         // better not leave any variables undropped
         let res = self.executor.context_switch();
-        
+
         if res.is_err() {
-            
             self.reactor.submit_and_wait()?;
-            
+
             self.executor.context_switch().ok();
-            
         }
-        
 
         Ok(())
     }
@@ -55,7 +51,6 @@ impl Runtime {
     pub fn increment_tick(&self) -> io::Result<()> {
         let prev = self.tick.fetch_add(1, Release);
         if prev % 61 == 0 {
-            
             self.reactor.submit_and_yield()?;
         }
 

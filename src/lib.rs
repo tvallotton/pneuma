@@ -28,6 +28,7 @@ extern crate self as pneuma;
 pub(crate) mod runtime;
 pub(crate) mod sys;
 
+pub mod fd;
 pub mod fs;
 pub mod future;
 pub mod net;

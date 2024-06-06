@@ -1,16 +1,18 @@
-use crate::uthread;
-use crate::utils::IgnorePoison;
 use io_uring::squeue;
 use io_uring::{
     opcode::{self, OpenAt, Statx},
     types::{Fd, FsyncFlags, Timespec},
 };
+use pneuma::fd::OwnedFd;
 use pneuma::sys::statx::{statx, STATX_BASIC_STATS};
+use pneuma::uthread;
+use pneuma::utils::IgnorePoison;
 use squeue::Entry as Event;
+
 use std::{
     ffi::{CStr, CString},
     io::{self},
-    os::fd::{AsRawFd, FromRawFd, OwnedFd},
+    os::fd::{AsRawFd, FromRawFd},
     time::Duration,
 };
 use std::{io::Error, mem::transmute, sync::atomic::Ordering};
@@ -38,13 +40,13 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     loop {
         let result = thread.cx.io_uring_result.load(Ordering::Relaxed);
 
-        if dbg!(result == i64::MAX) {
+        if result == i64::MAX {
             uthread::park();
 
             continue;
         }
 
-        if dbg!(result.is_negative()) {
+        if result.is_negative() {
             return Err(Error::from_raw_os_error(-result as _));
         }
 
@@ -125,6 +127,7 @@ pub fn open_at(path: &CStr, flags: i32, mode: u32) -> io::Result<OwnedFd> {
         .build();
     // Safety: the resource (pathname) is submitted
     let read = dbg!(submit(sqe))?;
+    
     Ok(unsafe { OwnedFd::from_raw_fd(read) })
 }
 
@@ -152,7 +155,7 @@ pub fn statx(fd: i32, path: Option<CString>, flags: i32) -> io::Result<statx> {
 #[track_caller]
 pub fn close(fd: i32) -> std::io::Result<i32> {
     let sqe = opcode::Close::new(Fd(fd.as_raw_fd())).build();
-
+    dbg!(std::panic::Location::caller());
     dbg!(submit(sqe))
 }
 
@@ -174,4 +177,40 @@ pub fn fsync_data(fd: i32) -> io::Result<i32> {
         .flags(FsyncFlags::DATASYNC)
         .build();
     submit(sqe)
+}
+
+pub fn mkdir_at(path: &CStr) -> io::Result<i32> {
+    let sqe = opcode::MkDirAt::new(Fd(libc::AT_FDCWD), path.as_ptr()).build();
+    submit(sqe)
+}
+
+pub fn symlink_at(target: &CStr, linkpath: &CStr) -> io::Result<()> {
+    let sqe =
+        opcode::SymlinkAt::new(Fd(libc::AT_FDCWD), target.as_ptr(), linkpath.as_ptr()).build();
+    submit(sqe)?;
+    Ok(())
+}
+
+pub fn link_at(target: &CStr, linkpath: &CStr) -> io::Result<()> {
+    let sqe = opcode::LinkAt::new(
+        Fd(libc::AT_FDCWD),
+        target.as_ptr(),
+        Fd(libc::AT_FDCWD),
+        linkpath.as_ptr(),
+    )
+    .build();
+    submit(sqe)?;
+    Ok(())
+}
+
+pub fn rename_at(oldpath: &CStr, newpath: &CStr) -> io::Result<()> {
+    let sqe = io_uring::opcode::RenameAt::new(
+        Fd(libc::AT_FDCWD),
+        oldpath.as_ptr(),
+        Fd(libc::AT_FDCWD),
+        newpath.as_ptr(),
+    )
+    .build();
+    submit(sqe)?;
+    Ok(())
 }

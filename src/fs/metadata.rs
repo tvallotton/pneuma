@@ -1,13 +1,44 @@
 #![allow(unreachable_code)]
 
 use super::cstr;
-use crate::reactor::op;
-use crate::sys::statx::{statx, statx_timestamp};
 use libc::{mode_t, AT_SYMLINK_NOFOLLOW, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG};
+use pneuma::reactor::op;
+use pneuma::sys::statx::{statx, statx_timestamp};
 use std::ffi::CString;
+
+use std::fs::FileTimes;
 use std::io::{self, Error, Result};
+use std::os::linux::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
+
+/// Metadata information about a file.
+///
+/// This structure is returned from the [`metadata`] function
+/// or method and represents known metadata about a file such
+/// as its permissions, size, modification
+/// times, etc.
+pub struct Metadata {
+    pub(crate) statx: statx,
+}
+
+/// Representation of the various permissions on a file.
+///
+/// This module only currently provides one bit of information,
+/// [`Permissions::readonly`], which is exposed on all currently supported
+/// platforms. Unix-specific functionality, such as mode bits, is available
+/// through the [`PermissionsExt`] trait.
+///
+/// [`PermissionsExt`]: crate::os::unix::fs::PermissionsExt
+#[derive(Clone, PartialEq, Eq)]
+pub struct Permissions {
+    mode: mode_t,
+}
+
+/// A structure representing a type of file with accessors for each file type.
+/// It is returned by [`Metadata::file_type`] method.
+#[derive(Clone, Copy)]
+pub struct FileType(pub(crate) u16);
 
 /// Given a path, query the file system to get information about a file,
 /// directory, etc.
@@ -81,21 +112,6 @@ fn _metadata(path: CString, flags: i32) -> std::io::Result<Metadata> {
     let statx = op::statx(libc::AT_FDCWD, Some(path), flags)?;
     Ok(Metadata { statx })
 }
-
-/// Metadata information about a file.
-///
-/// This structure is returned from the [`metadata`] function
-/// or method and represents known metadata about a file such
-/// as its permissions, size, modification
-/// times, etc.
-pub struct Metadata {
-    pub(crate) statx: statx,
-}
-
-/// A structure representing a type of file with accessors for each file type.
-/// It is returned by [`Metadata::file_type`] method.
-#[derive(Clone, Copy)]
-pub struct FileType(u16);
 
 impl Metadata {
     /// Returns the last access time of this metadata.
@@ -221,8 +237,8 @@ impl Metadata {
     /// When the goal is simply to read from (or write to) the source, the most
     /// reliable way to test the source can be read (or written to) is to open
     /// it. Only using `is_file` can break workflows like `diff <( prog_a )` on
-    /// a Unix-like system for example. See [`File::open`](crate::fs::File::open) or
-    /// [`OpenOptions::open`](crate::fs::OpenOptions::open) for more information.
+    /// a Unix-like system for example. See [`File::open`](pneumafs::File::open) or
+    /// [`OpenOptions::open`](pneumafs::OpenOptions::open) for more information.
     ///
     /// # Examples
     ///
@@ -284,6 +300,145 @@ impl Metadata {
     pub fn len(&self) -> usize {
         self.statx.stx_size as usize
     }
+
+    /// Returns the permissions of the file this metadata is for.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use pneuma::fs;
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     let metadata = fs::metadata("foo.txt")?;
+    ///
+    ///     assert!(!metadata.permissions().readonly());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn permissions(&self) -> Permissions {
+        Permissions {
+            mode: self.statx.stx_mode as libc::mode_t,
+        }
+    }
+}
+
+impl MetadataExt for Metadata {
+    #[allow(deprecated)]
+    fn as_raw_stat(&self) -> &std::os::linux::raw::stat {
+        unimplemented!();
+    }
+
+    fn st_dev(&self) -> u64 {
+        let mj = self.statx.stx_dev_major as u64;
+        let mn = self.statx.stx_dev_minor as u64;
+
+        ((mj & 0xfffff000) << 32)
+            | ((mj & 0x00000fff) << 8)
+            | ((mn & 0xffffff00) << 12)
+            | (mn & 0x000000ff)
+    }
+    fn st_ino(&self) -> u64 {
+        self.statx.stx_ino as u64
+    }
+    fn st_mode(&self) -> u32 {
+        self.statx.stx_mode as u32
+    }
+    fn st_nlink(&self) -> u64 {
+        self.statx.stx_nlink as u64
+    }
+    fn st_uid(&self) -> u32 {
+        self.statx.stx_uid as u32
+    }
+    fn st_gid(&self) -> u32 {
+        self.statx.stx_gid as u32
+    }
+    fn st_rdev(&self) -> u64 {
+        let mj = self.statx.stx_rdev_major as u64;
+        let mn = self.statx.stx_rdev_minor as u64;
+
+        ((mj & 0xfffff000) << 32)
+            | ((mj & 0x00000fff) << 8)
+            | ((mn & 0xffffff00) << 12)
+            | (mn & 0x000000ff)
+    }
+    fn st_size(&self) -> u64 {
+        self.statx.stx_size as u64
+    }
+    fn st_atime(&self) -> i64 {
+        self.statx.stx_atime.tv_sec
+    }
+    fn st_atime_nsec(&self) -> i64 {
+        self.statx.stx_atime.tv_nsec as _
+    }
+    fn st_mtime(&self) -> i64 {
+        self.statx.stx_mtime.tv_sec
+    }
+    fn st_mtime_nsec(&self) -> i64 {
+        self.statx.stx_mtime.tv_nsec as i64
+    }
+    fn st_ctime(&self) -> i64 {
+        self.statx.stx_ctime.tv_sec as i64
+    }
+    fn st_ctime_nsec(&self) -> i64 {
+        self.statx.stx_ctime.tv_nsec as i64
+    }
+    fn st_blksize(&self) -> u64 {
+        self.statx.stx_blksize as u64
+    }
+    fn st_blocks(&self) -> u64 {
+        self.statx.stx_blocks as u64
+    }
+}
+
+impl std::os::unix::fs::MetadataExt for Metadata {
+    fn dev(&self) -> u64 {
+        self.st_dev()
+    }
+    fn ino(&self) -> u64 {
+        self.st_ino()
+    }
+    fn mode(&self) -> u32 {
+        self.st_mode()
+    }
+    fn nlink(&self) -> u64 {
+        self.st_nlink()
+    }
+    fn uid(&self) -> u32 {
+        self.st_uid()
+    }
+    fn gid(&self) -> u32 {
+        self.st_gid()
+    }
+    fn rdev(&self) -> u64 {
+        self.st_rdev()
+    }
+    fn size(&self) -> u64 {
+        self.st_size()
+    }
+    fn atime(&self) -> i64 {
+        self.st_atime()
+    }
+    fn atime_nsec(&self) -> i64 {
+        self.st_atime_nsec()
+    }
+    fn mtime(&self) -> i64 {
+        self.st_mtime()
+    }
+    fn mtime_nsec(&self) -> i64 {
+        self.st_mtime_nsec()
+    }
+    fn ctime(&self) -> i64 {
+        self.st_ctime()
+    }
+    fn ctime_nsec(&self) -> i64 {
+        self.st_ctime_nsec()
+    }
+    fn blksize(&self) -> u64 {
+        self.st_blksize()
+    }
+    fn blocks(&self) -> u64 {
+        self.st_blocks()
+    }
 }
 
 impl FileType {
@@ -313,8 +468,8 @@ impl FileType {
     /// When the goal is simply to read from (or write to) the source, the most
     /// reliable way to test the source can be read (or written to) is to open
     /// it. Only using `is_file` can break workflows like `diff <( prog_a )` on
-    /// a Unix-like system for example. See [`File::open`](crate::fs::File::open) or
-    /// [`OpenOptions::open`](crate::fs::OpenOptions::open) for more information.
+    /// a Unix-like system for example. See [`File::open`](pneumafs::File::open) or
+    /// [`OpenOptions::open`](pneumafs::OpenOptions::open) for more information.
     ///
     /// # Examples
     ///
@@ -385,6 +540,131 @@ impl FileType {
     /// ```
     pub fn is_fifo(&self) -> bool {
         (self.0 as mode_t & libc::S_IFIFO) == libc::S_IFIFO
+    }
+}
+
+impl Permissions {
+    /// Returns `true` if these permissions describe a readonly (unwritable) file.
+    ///
+    /// # Note
+    ///
+    /// This function does not take Access Control Lists (ACLs) or Unix group
+    /// membership into account.
+    ///
+    /// # Windows
+    ///
+    /// On Windows this returns [`FILE_ATTRIBUTE_READONLY`](https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants).
+    /// If `FILE_ATTRIBUTE_READONLY` is set then writes to the file will fail
+    /// but the user may still have permission to change this flag. If
+    /// `FILE_ATTRIBUTE_READONLY` is *not* set then writes may still fail due
+    /// to lack of write permission.
+    /// The behavior of this attribute for directories depends on the Windows
+    /// version.
+    ///
+    /// # Unix (including macOS)
+    ///
+    /// On Unix-based platforms this checks if *any* of the owner, group or others
+    /// write permission bits are set. It does not check if the current
+    /// user is in the file's assigned group. It also does not check ACLs.
+    /// Therefore the return value of this function cannot be relied upon
+    /// to predict whether attempts to read or write the file will actually succeed.
+    /// The [`PermissionsExt`] trait gives direct access to the permission bits but
+    /// also does not read ACLs.
+    ///
+    /// [`PermissionsExt`]: crate::os::unix::fs::PermissionsExt
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     let mut f = File::create("foo.txt")?;
+    ///     let metadata = f.metadata()?;
+    ///
+    ///     assert_eq!(false, metadata.permissions().readonly());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn readonly(&self) -> bool {
+        // check if any class (owner, group, others) has write permission
+        self.mode & 0o222 == 0
+    }
+
+    /// Modifies the readonly flag for this set of permissions. If the
+    /// `readonly` argument is `true`, using the resulting `Permission` will
+    /// update file permissions to forbid writing. Conversely, if it's `false`,
+    /// using the resulting `Permission` will update file permissions to allow
+    /// writing.
+    ///
+    /// This operation does **not** modify the files attributes. This only
+    /// changes the in-memory value of these attributes for this `Permissions`
+    /// instance. To modify the files attributes use the [`set_permissions`]
+    /// function which commits these attribute changes to the file.
+    ///
+    /// # Note
+    ///
+    /// `set_readonly(false)` makes the file *world-writable* on Unix.
+    /// You can use the [`PermissionsExt`] trait on Unix to avoid this issue.
+    ///
+    /// It also does not take Access Control Lists (ACLs) or Unix group
+    /// membership into account.
+    ///
+    /// # Windows
+    ///
+    /// On Windows this sets or clears [`FILE_ATTRIBUTE_READONLY`](https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants).
+    /// If `FILE_ATTRIBUTE_READONLY` is set then writes to the file will fail
+    /// but the user may still have permission to change this flag. If
+    /// `FILE_ATTRIBUTE_READONLY` is *not* set then the write may still fail if
+    /// the user does not have permission to write to the file.
+    ///
+    /// In Windows 7 and earlier this attribute prevents deleting empty
+    /// directories. It does not prevent modifying the directory contents.
+    /// On later versions of Windows this attribute is ignored for directories.
+    ///
+    /// # Unix (including macOS)
+    ///
+    /// On Unix-based platforms this sets or clears the write access bit for
+    /// the owner, group *and* others, equivalent to `chmod a+w <file>`
+    /// or `chmod a-w <file>` respectively. The latter will grant write access
+    /// to all users! You can use the [`PermissionsExt`] trait on Unix
+    /// to avoid this issue.
+    ///
+    /// [`PermissionsExt`]: crate::os::unix::fs::PermissionsExt
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// fn main() -> std::io::Result<()> {
+    ///     let f = File::create("foo.txt")?;
+    ///     let metadata = f.metadata()?;
+    ///     let mut permissions = metadata.permissions();
+    ///
+    ///     permissions.set_readonly(true);
+    ///
+    ///     // filesystem doesn't change, only the in memory state of the
+    ///     // readonly permission
+    ///     assert_eq!(false, metadata.permissions().readonly());
+    ///
+    ///     // just this particular `permissions`.
+    ///     assert_eq!(true, permissions.readonly());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn set_readonly(&mut self, readonly: bool) {
+        if readonly {
+            // remove write permission for all classes; equivalent to `chmod a-w <file>`
+            self.mode &= !0o222;
+        } else {
+            // add write permission for all classes; equivalent to `chmod a+w <file>`
+            self.mode |= 0o222;
+        }
+    }
+
+    pub(crate) fn mode(&self) -> libc::mode_t {
+        self.mode
     }
 }
 

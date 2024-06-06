@@ -5,7 +5,7 @@ use std::{
     task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
 };
 
-use crate::uthread::UThread;
+use pneuma::uthread::UThread;
 
 /// Awaits an async function
 pub fn wait<F>(future: F) -> F::Output

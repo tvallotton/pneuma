@@ -9,7 +9,7 @@ use std::{
 };
 use thread_local::ThreadLocal;
 
-use crate::{
+use pneuma::{
     sys::stack::Stack,
     uthread::{Context, ReprContext, UThread},
 };

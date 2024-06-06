@@ -1,7 +1,7 @@
 // # Attribution
 // credits to the authors at pneuma
-use crate::reactor::op;
 use pneuma::fs::File;
+use pneuma::reactor::op;
 use std::ffi::CString;
 use std::io::{self, Error, Result};
 use std::os::fd::IntoRawFd;
@@ -295,7 +295,7 @@ impl OpenOptions {
     fn _open(&self, path: CString) -> Result<File> {
         let flags = libc::O_CLOEXEC | self.access_mode()? | self.creation_mode()?;
 
-        let fd = op::open_at(&path, flags, self.mode)?.into_raw_fd();
+        let fd = op::open_at(&path, flags, self.mode)?;
 
         Ok(File { fd })
     }
@@ -333,5 +333,10 @@ impl OpenOptions {
             (true, true, false) => libc::O_CREAT | libc::O_TRUNC,
             (_, _, true) => libc::O_CREAT | libc::O_EXCL,
         })
+    }
+
+    pub(crate) fn mode(&mut self, mode: libc::mode_t) -> &mut OpenOptions {
+        self.mode = mode;
+        self
     }
 }

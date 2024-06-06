@@ -2,7 +2,7 @@ use std::{io, mem::transmute};
 
 use mio::{event::Source, Interest, Token};
 
-use crate::{uthread::UThread, utils::IgnorePoison};
+use pneuma::{uthread::UThread, utils::IgnorePoison};
 
 pub struct Registered<S: Source> {
     pub source: S,

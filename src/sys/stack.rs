@@ -1,6 +1,6 @@
 use std::{io, os::raw::c_void, ptr::null_mut};
 
-use crate::syscall;
+use pneuma::syscall;
 
 #[repr(C)]
 pub(crate) struct Stack {

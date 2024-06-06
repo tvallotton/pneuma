@@ -8,7 +8,7 @@ use std::{
     task::Waker,
 };
 
-use crate::{uthread::UThread, utils::IgnorePoison};
+use pneuma::{uthread::UThread, utils::IgnorePoison};
 
 /// A nonblocking FIFO `Mutex`-like type.
 ///

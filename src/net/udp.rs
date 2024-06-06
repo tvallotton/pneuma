@@ -7,8 +7,8 @@ use std::{
     time::Duration,
 };
 
-use crate::reactor::{nonblocking::nonblocking, Registered};
 use mio::Interest;
+use pneuma::reactor::{nonblocking::nonblocking, Registered};
 use std::net::SocketAddr;
 
 use super::to_socket_addr::{try_each, ToSocketAddrs};

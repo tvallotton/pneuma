@@ -2,7 +2,7 @@ use std::io;
 
 use pneuma::uthread::JoinHandle;
 
-use crate::sys::stack::Stack;
+use pneuma::sys::stack::Stack;
 
 /// Thread factory, which can be used in order to configure the properties of
 /// a new uthread.
@@ -134,7 +134,7 @@ impl Builder {
     /// [`io::Result`] to capture any failure to create the thread at
     /// the OS level.
     ///
-    /// [`io::Result`]: crate::io::Result
+    /// [`io::Result`]: pneumaio::Result
     ///
     /// # Panics
     ///

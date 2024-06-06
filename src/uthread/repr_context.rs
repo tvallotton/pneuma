@@ -17,7 +17,7 @@ use super::{
     builder::Builder, context::Context, lifecycle::OS_THREAD, registers::Registers,
     thread_id::UThreadId, UThread,
 };
-use crate::{sys::stack::Stack, uthread::lifecycle::NEW};
+use pneuma::{sys::stack::Stack, uthread::lifecycle::NEW};
 
 #[repr(C)]
 pub struct ReprContext {
