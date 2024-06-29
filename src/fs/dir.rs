@@ -26,13 +26,13 @@ pub fn remove_dir(path: impl AsRef<Path>) -> io::Result<()> {
     op::unlink_at(&path, libc::AT_REMOVEDIR)?;
     Ok(())
 }
-
+// std::fs::create_dir_all
 pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     let path = path.as_ref();
     if path == Path::new("") {
         return Ok(());
     }
-
+    dbg!(path);
     match create_dir(path) {
         Ok(()) => return Ok(()),
         Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
@@ -46,12 +46,53 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
             return Err(io::Error::other("failed to create whole tree"));
         }
     }
+    dbg!();
     match create_dir(path) {
         Ok(()) => Ok(()),
         Err(_) if path.is_dir() => Ok(()),
         Err(e) => Err(e),
     }
 }
+
+// pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
+//     let mut paths = vec![path.as_ref()];
+//     let mut retry = vec![];
+//     loop {
+//         let Some(path) = paths.pop() else {
+//             let Some(path) = paths.pop() else {
+//                 return Ok(());
+//             };
+
+//             match create_dir(path) {
+//                 Ok(()) => continue,
+//                 Err(_) if path.is_dir() => continue,
+//                 Err(e) => return Err(e),
+//             }
+//         };
+
+//         if path == Path::new("") {
+//             continue;
+//         }
+
+//         match create_dir(path) {
+//             Ok(()) => continue,
+//             Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
+//             Err(_) if path.is_dir() => continue,
+//             Err(e) => return Err(e),
+//         }
+//         retry.push(path);
+
+//         match path.parent() {
+//             Some(p) => {
+//                 paths.push(p);
+//                 continue;
+//             }
+//             None => {
+//                 return Err(io::Error::other("failed to create whole tree"));
+//             }
+//         }
+//     }
+// }
 
 pub fn remove_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     let path = path.as_ref();

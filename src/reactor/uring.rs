@@ -120,14 +120,14 @@ pub fn emit_uevent(fd: i32) -> io::Result<()> {
     Ok(())
 }
 #[track_caller]
-pub fn open_at(path: &CStr, flags: i32, mode: u32) -> io::Result<OwnedFd> {
+pub(crate) fn open_at(path: &CStr, flags: i32, mode: u32) -> io::Result<OwnedFd> {
     let sqe = OpenAt::new(Fd(libc::AT_FDCWD), path.as_ptr())
         .flags(flags)
         .mode(mode)
         .build();
     // Safety: the resource (pathname) is submitted
     let read = dbg!(submit(sqe))?;
-    
+
     Ok(unsafe { OwnedFd::from_raw_fd(read) })
 }
 

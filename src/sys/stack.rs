@@ -1,10 +1,14 @@
-use std::{io, os::raw::c_void, ptr::null_mut};
+use std::{
+    io::{self, Error},
+    os::raw::c_void,
+    ptr::null_mut,
+};
 
 use pneuma::syscall;
 
 #[repr(C)]
 pub(crate) struct Stack {
-    pub data: *mut c_void,
+    data: *mut c_void,
     pub size: usize,
 }
 
@@ -21,13 +25,6 @@ impl Stack {
             return Ok(Stack::default());
         }
 
-        let mut flags = libc::MAP_ANONYMOUS | libc::MAP_PRIVATE;
-
-        #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
-        {
-            flags |= libc::MAP_STACK;
-        }
-
         size += page_size() - size % page_size();
         size += page_size();
 
@@ -36,7 +33,7 @@ impl Stack {
             null_mut(),
             size,
             libc::PROT_READ | libc::PROT_WRITE,
-            flags,
+            libc::MAP_ANONYMOUS | libc::MAP_PRIVATE | map_stack(),
             -1,
             0,
         )?;
@@ -67,6 +64,31 @@ impl Stack {
             ss_flags: 0,
         }
     }
+
+    #[allow(unused_mut)]
+    pub fn try_grow(&mut self) -> io::Result<()> {
+        let target_ptr = self.data.wrapping_sub(page_size());
+
+        let data = syscall!(
+            mmap,
+            target_ptr,
+            page_size(),
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_ANONYMOUS | libc::MAP_PRIVATE | map_fixed() | map_stack(),
+            -1,
+            0,
+        )?;
+
+        if data != target_ptr {
+            return Err(Error::other("failed to allocate specified mapping"));
+        }
+
+        self.data = data;
+        self.size += page_size();
+        self.protect_page()?;
+
+        Ok(())
+    }
 }
 
 impl Drop for Stack {
@@ -95,3 +117,30 @@ pub(crate) fn page_size() -> usize {
 
 unsafe impl Sync for Stack {}
 unsafe impl Send for Stack {}
+
+#[allow(unreachable_code)]
+fn map_stack() -> i32 {
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
+    {
+        return libc::MAP_STACK;
+    };
+    0
+}
+
+#[allow(unreachable_code)]
+fn map_fixed() -> i32 {
+    #[cfg(target_os = "linux")]
+    {
+        return libc::MAP_FIXED_NOREPLACE;
+    };
+    #[cfg(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd"
+    ))]
+    {
+        return libc::MAP_STACK;
+    };
+    0
+}

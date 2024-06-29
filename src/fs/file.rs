@@ -277,6 +277,7 @@ impl File {
     /// Destructures `File` into a [`std::fs::File`].
     pub fn into_std(self) -> std::fs::File {
         let fd = self.into_raw_fd();
+        // Safety: fd is a valid file descriptor
         unsafe { std::fs::File::from_raw_fd(fd) }
     }
 
@@ -292,6 +293,7 @@ impl File {
 
     pub fn from_std(file: std::fs::File) -> Self {
         let fd = file.into_raw_fd();
+        // Safety: fd is a valid file descriptor
         File {
             fd: unsafe { OwnedFd::from_raw_fd(fd) },
         }

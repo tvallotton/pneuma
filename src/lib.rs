@@ -21,7 +21,7 @@
 #![allow(clippy::fn_to_numeric_cast)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::len_without_is_empty)]
-#![feature(thread_id_value)]
+// #![feature(thread_id_value)]
 
 extern crate self as pneuma;
 
@@ -31,9 +31,14 @@ pub(crate) mod sys;
 pub mod fd;
 pub mod fs;
 pub mod future;
-pub mod net;
-pub mod reactor;
+
 pub mod sync;
-pub mod time;
 pub mod uthread;
 pub mod utils;
+
+#[cfg(feature = "io")]
+pub mod net;
+#[cfg(feature = "io")]
+pub mod reactor;
+#[cfg(feature = "io")]
+pub mod time;

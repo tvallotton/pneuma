@@ -122,6 +122,7 @@ impl Reactor {
         drop(is_blocking);
 
         self.uring.lock().ignore_poison().submit()?;
+
         let mut guard = self.waker.poll.lock().ignore_poison();
         let (events, poll) = &mut *guard;
         let result = poll.poll(events, timeout);
@@ -130,12 +131,15 @@ impl Reactor {
         *is_blocking = false;
 
         for event in events.iter() {
+            self.unpark_uring();
+            self.unpark_mio();
             match event.token().0 {
                 0 => self.unpark_uring(),
                 _ => self.unpark_mio(),
-            }
+            };
         }
         drop(guard);
+
         drop(is_blocking);
 
         self.waker.condvar.notify_all();
@@ -145,12 +149,14 @@ impl Reactor {
 
     pub fn unpark_mio(&self) {
         let Mio { events, .. } = &mut *self.mio.lock().ignore_poison();
+
         for event in events.iter() {
             if event.token().0 == 0 {
                 continue;
             }
             let uthread: &UThread = unsafe { transmute(&event.token().0) };
 
+            dbg!(uthread.name());
             uthread.unpark();
         }
     }
@@ -163,7 +169,6 @@ impl Reactor {
                 .cx
                 .io_uring_result
                 .store(event.result() as i64, Relaxed);
-            uthread.unpark();
         }
     }
 }

@@ -20,12 +20,12 @@ use std::path::Path;
 /// # Examples
 ///
 /// ```no_run
-/// # osiris::block_on(async {
-/// use osiris::fs;
+/// # let _ = || {
+/// use pneuma::fs;
 /// use std::net::SocketAddr;
 ///
-/// let foo: SocketAddr = String::from_utf8_lossy(&fs::read("address.txt").await?).parse()?;
-/// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+/// let foo: SocketAddr = String::from_utf8_lossy(&fs::read("address.txt")?).parse()?;
+/// # Ok::<(), Box<dyn std::error::Error>>(()) };
 /// ```
 pub fn read(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     _read(path.as_ref())
@@ -58,13 +58,13 @@ fn _read(path: &Path) -> io::Result<Vec<u8>> {
 /// # Examples
 ///
 /// ```no_run
-/// # osiris::block_on(async {
-/// use osiris::fs;
+/// # let _ = || {
+/// use pneuma::fs;
 /// use std::net::SocketAddr;
 /// use std::error::Error;
 ///
-/// let foo: SocketAddr = fs::read_to_string("address.txt").await?.parse()?;
-/// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+/// let foo: SocketAddr = fs::read_to_string("address.txt")?.parse()?;
+/// # Ok::<(), Box<dyn std::error::Error>>(()) };
 /// ```
 pub fn read_to_string(path: impl AsRef<Path>) -> io::Result<String> {
     _read_to_string(path.as_ref())

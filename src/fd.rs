@@ -21,13 +21,13 @@ impl FromRawFd for OwnedFd {
 impl IntoRawFd for OwnedFd {
     fn into_raw_fd(self) -> std::os::unix::prelude::RawFd {
         let fd = self.fd;
-        std::mem::forget(fd);
+        std::mem::forget(self);
         fd
     }
 }
 
 impl Drop for OwnedFd {
     fn drop(&mut self) {
-        op::close(self.fd);
+        dbg!(op::close(self.fd));
     }
 }
