@@ -76,7 +76,7 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
         std::process::abort();
     };
 
-    let Ok(mut thread) = lock.try_lock() else {
+    let Ok(thread) = lock.try_lock() else {
         raw_errln!("error: segmentation fault");
         std::process::abort();
     };
@@ -86,11 +86,11 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
     if thread.cx.stack.is_stackoverflow(unsafe { info.si_addr() }) {
         // Safety: This is fine, since the thread locked mutable access
         // to its internals before its stack overflowed.
-        let res = unsafe { (&mut *thread.cx.ptr.as_ptr()).stack.try_grow() };
+        // let res = unsafe { (&mut *thread.cx.ptr.as_ptr()).stack.try_grow() };
 
-        if res.is_ok() {
-            return;
-        }
+        // if res.is_ok() {
+        //     return;
+        // }
 
         let size = thread.cx.stack.size - page_size();
 

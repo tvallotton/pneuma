@@ -6,6 +6,7 @@ use std::{
         atomic::Ordering::{Relaxed, Release},
         Mutex,
     },
+    time::{Duration, Instant, SystemTime},
 };
 use thread_local::ThreadLocal;
 
@@ -13,6 +14,8 @@ use pneuma::{
     sys::stack::Stack,
     uthread::{Context, ReprContext, UThread},
 };
+
+use super::blocking_pool::BlockingPool;
 
 const MAX_WORK_PER_WORKER: usize = 16;
 
@@ -23,7 +26,8 @@ pub(crate) struct Executor {
     pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
     pub injector: crossbeam_deque::Injector<UThread>,
-    pub unused_stacks: Mutex<Vec<Stack>>,
+    pub blocking_pool: BlockingPool,
+    pub unused_stacks: Mutex<Vec<(Stack, u64)>>,
 }
 
 impl Executor {
@@ -145,16 +149,28 @@ impl Executor {
         self.injector.push(thread)
     }
 
-    pub(crate) fn recycle(&self, cx: &Context) {
+    pub(crate) fn recycle(&self, cx: &Context, tick: u64) {
         debug_assert!(cx.has_exited());
         let ReprContext { stack, .. } = unsafe { &mut *cx.ptr() };
         let stack = std::mem::take(stack);
-        self.unused_stacks.lock().ignore_poison().push(stack);
+        self.unused_stacks
+            .lock()
+            .ignore_poison()
+            .push((stack, tick));
     }
 
     pub(crate) fn stack(&self, stack_size: usize) -> Option<Stack> {
         let mut stacks = self.unused_stacks.lock().ignore_poison();
-        let i = stacks.iter().position(|stack| stack.size >= stack_size)?;
-        Some(stacks.swap_remove(i))
+        let i = stacks
+            .iter()
+            .position(|(stack, _)| stack.size >= stack_size)?;
+        Some(stacks.swap_remove(i).0)
+    }
+
+    pub(crate) fn clean_stacks(&self, tick: u64) {
+        self.unused_stacks
+            .lock()
+            .ignore_poison()
+            .retain(|(_, then)| then.abs_diff(tick) < 256);
     }
 }

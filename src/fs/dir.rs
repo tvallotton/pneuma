@@ -26,7 +26,8 @@ pub fn remove_dir(path: impl AsRef<Path>) -> io::Result<()> {
     op::unlink_at(&path, libc::AT_REMOVEDIR)?;
     Ok(())
 }
-// std::fs::create_dir_all
+
+// TODO: make iterative
 pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     let path = path.as_ref();
     if path == Path::new("") {
@@ -46,7 +47,7 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
             return Err(io::Error::other("failed to create whole tree"));
         }
     }
-    dbg!();
+
     match create_dir(path) {
         Ok(()) => Ok(()),
         Err(_) if path.is_dir() => Ok(()),

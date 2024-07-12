@@ -108,7 +108,7 @@ impl Context {
 
         if self.has_exited() {
             self.wake_joiner();
-            current().executor.recycle(&self);
+            current().clean_stacks();
         }
     }
 

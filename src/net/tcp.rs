@@ -74,7 +74,10 @@ impl TcpStream {
     /// then uses an OS-specific mechanism to await the completion of the
     /// connection request.
     pub fn connect_timeout(addr: SocketAddr, timeout: Duration) -> io::Result<TcpStream> {
-        try_each(addr, |addr| Self::_connect_timeout(addr, Some(timeout)))
+        try_each(addr, |addr| {
+            dbg!(addr);
+            Self::_connect_timeout(addr, Some(timeout))
+        })
     }
 
     #[inline]
@@ -104,23 +107,24 @@ impl TcpStream {
         // * https://stackoverflow.com/questions/17769964/linux-sockets-non-blocking-connect
 
         let stream = mio::net::TcpStream::connect(addr)?;
-
+        
         let registered = Registered::register(stream, Interest::READABLE | Interest::WRITABLE)?;
-
+        
         let start = timeout.map(|_| Instant::now());
-
+        
         loop {
+            
             // If we hit an error while connecting return that error.
             if let Ok(Some(err)) | Err(err) = registered.source.take_error() {
                 return Err(err);
             }
-
+            
             // If we can get a peer address it means the stream is
             // connected.
             let Err(err) = registered.source.peer_addr() else {
                 return Ok(TcpStream { registered });
             };
-
+            
             // `NotConnected` (`ENOTCONN`) means the socket not yet
             // connected, but still working on it. `ECONNREFUSED` will
             // be reported if it fails.
@@ -129,12 +133,13 @@ impl TcpStream {
             {
                 return Err(err);
             }
-
+            
             // Check if we have exceeded the timeout.
             if start.is_some_and(|time| time.elapsed() > timeout.unwrap()) {
+                dbg!(start);
                 return Err(Error::from_raw_os_error(libc::ETIMEDOUT));
             }
-
+            
             // Socket is not (yet) connected but haven't hit an
             // error either. So we yield and wait for
             // another event.

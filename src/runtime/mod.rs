@@ -1,12 +1,15 @@
+pub(crate) use globals::current;
+use pneuma::uthread::Context;
+use pneuma::{reactor::Reactor, sys::signal_stack::SignalStack};
+use std::sync::atomic::Ordering::Relaxed;
 use std::{
-    io::{self},
+    io,
     sync::atomic::{AtomicU64, Ordering::Release},
 };
 
-pub(crate) use globals::current;
-use pneuma::{reactor::Reactor, sys::signal_stack::SignalStack};
-
 use executor::Executor;
+
+mod blocking_pool;
 mod executor;
 mod globals;
 
@@ -50,10 +53,20 @@ impl Runtime {
 
     pub fn increment_tick(&self) -> io::Result<()> {
         let prev = self.tick.fetch_add(1, Release);
+
         if prev % 61 == 0 {
             self.reactor.submit_and_yield()?;
         }
 
+        if prev % 256 == 255 {
+            self.clean_stacks();
+        }
+
         Ok(())
+    }
+
+    pub fn clean_stacks(&self) {
+        let tick = self.tick.load(Relaxed);
+        self.executor.clean_stacks(tick);
     }
 }

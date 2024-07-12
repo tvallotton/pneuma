@@ -207,7 +207,6 @@ pub fn current() -> UThread {
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
-
     pneuma::runtime::current().park()
 }
 
