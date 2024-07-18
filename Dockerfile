@@ -4,6 +4,7 @@ RUN apt install valgrind -y
 RUN cargo install cargo-show-asm
 RUN cargo install cargo-watch
 RUN cargo install cargo-llvm-cov
+RUN rustup component add rustfmt clippy
 WORKDIR /home/app
 COPY . .
 CMD ["/usr/local/cargo/bin/cargo", "test"]

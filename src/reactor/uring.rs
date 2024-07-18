@@ -20,7 +20,7 @@ use std::{io::Error, mem::transmute, sync::atomic::Ordering};
 #[track_caller]
 pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     let thread = pneuma::uthread::current();
-    let rt = pneuma::runtime::current();
+    let rt = pneuma::runtime();
     let sqe = sqe.user_data(unsafe { transmute(thread.clone()) });
 
     let mut io_uring = rt.reactor.uring.lock().ignore_poison();

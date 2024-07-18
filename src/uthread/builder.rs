@@ -169,7 +169,7 @@ impl Builder {
     }
 
     pub(crate) fn stack(&mut self) -> io::Result<Stack> {
-        let rt = pneuma::runtime::current();
+        let rt = pneuma::runtime();
         if let Some(stack) = rt.executor.stack(self.stack_size) {
             return Ok(stack);
         }

@@ -13,8 +13,8 @@ start_coroutine:
 switch_context:
     // # Store context
     // store sp 
-    mov x2, sp
-    str x2, [x0, #0]
+    mov x4, sp
+    str x4, [x0, #0]
 
     // General purpose registers
     stp x29, x30, [x0, #8]
@@ -23,7 +23,6 @@ switch_context:
     stp x23, x24, [x0, #56]
     stp x21, x22, [x0, #72]
     stp x19, x20, [x0, #88]
-   
 
     // store d registers
     stp d8,  d9,  [x0, #104]
@@ -32,8 +31,8 @@ switch_context:
     stp d14, d15, [x0, #152]
 
     // load sp 
-    ldr x2, [x1, #0]
-    mov sp, x2
+    ldr x4, [x1, #0]
+    mov sp, x4
 
     // General purpose registers
     ldp x29, x30, [x1,  #8]

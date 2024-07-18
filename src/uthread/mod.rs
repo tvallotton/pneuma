@@ -12,12 +12,12 @@ pub(crate) use context::Context;
 use self::lifecycle::OS_THREAD;
 pub(crate) use self::repr_context::ReprContext;
 use self::thread_id::UThreadId;
+pub use builder::Builder;
 pub use join_handle::JoinHandle;
+pub(crate) use lifecycle::WorkerType;
+pub use scoped::{scope, Scope, ScopedJoinHandle};
 use std::fmt;
 use std::sync::atomic::Ordering::*;
-
-pub use builder::Builder;
-pub use scoped::{scope, Scope, ScopedJoinHandle};
 pub use yield_now::yield_now;
 
 mod builder;
@@ -166,7 +166,7 @@ impl UThread {
         if let OS_THREAD = self.cx.lifecycle.load(Relaxed) {
             return;
         }
-        pneuma::runtime::current().executor.push(self.clone())
+        pneuma::runtime().executor.push(self.clone())
     }
 
     pub(crate) fn for_os_thread() -> UThread {
@@ -196,19 +196,20 @@ impl UThread {
 /// ```
 #[must_use]
 pub fn current() -> UThread {
-    pneuma::runtime::current()
+    pneuma::runtime()
         .executor
         .current_thread()
         .lock()
         .unwrap()
         .clone()
 }
+
 #[track_caller]
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
-
-    pneuma::runtime::current().park()
+    let rt = pneuma::runtime::current();
+    rt.park(rt.executor.worker_type())
 }
 
 pub fn spawn<F, T>(f: F) -> JoinHandle<T>

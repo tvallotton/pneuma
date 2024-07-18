@@ -19,6 +19,9 @@ use super::{
 };
 use pneuma::{sys::stack::Stack, uthread::lifecycle::NEW};
 
+const LOCKED: bool = false;
+const UNLOCKED: bool = !LOCKED;
+
 #[repr(C)]
 pub struct ReprContext {
     pub registers: UnsafeCell<Registers>,

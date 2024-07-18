@@ -69,7 +69,7 @@ macro_rules! raw_errln {
 }
 
 fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
-    let rt = pneuma::runtime::current();
+    let rt = pneuma::runtime();
 
     let Some(lock) = rt.executor.current.get() else {
         raw_errln!("error: segmentation fault");

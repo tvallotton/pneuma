@@ -2,7 +2,7 @@
 
 use pneuma::fs::Metadata;
 use pneuma::reactor::op;
-use pneuma::runtime::current;
+use pneuma::runtime;
 
 use libc::AT_FDCWD;
 use std::borrow::Cow;

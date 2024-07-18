@@ -174,5 +174,5 @@ impl Reactor {
 }
 
 pub fn current() -> &'static Reactor {
-    &pneuma::runtime::current().reactor
+    &pneuma::runtime().reactor
 }

@@ -7,6 +7,9 @@ pub(crate) use globals::current;
 use pneuma::{reactor::Reactor, sys::signal_stack::SignalStack};
 
 use executor::Executor;
+
+use crate::uthread::WorkerType;
+mod blocking_pool;
 mod executor;
 mod globals;
 
@@ -32,7 +35,7 @@ impl Runtime {
         })
     }
 
-    pub fn park(&self) -> io::Result<()> {
+    pub fn park(&self, to_queue: WorkerType) -> io::Result<()> {
         self.increment_tick()?;
 
         // NOTE: we might never return

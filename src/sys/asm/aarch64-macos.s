@@ -11,8 +11,8 @@ _switch_context:
     
     // # Store context
     // store sp 
-    mov x2, sp
-    str x2, [x0, #0]
+    mov x4, sp
+    str x4, [x0, #0]
 
     // General purpose registers
     stp x29, x30, [x0, #8]
@@ -32,8 +32,8 @@ _switch_context:
     
     
     // load sp 
-    ldr x2, [x1, #0]
-    mov sp, x2
+    ldr x4, [x1, #0]
+    mov sp, x4
 
     // General purpose registers
     ldp x29, x30, [x1,  #8]

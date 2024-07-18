@@ -1,9 +1,13 @@
 use crossbeam_deque::{Steal, Stealer, Worker};
 use pneuma::utils::IgnorePoison;
+use queue::Queue;
 use std::{
     mem::replace,
     sync::{
-        atomic::Ordering::{Relaxed, Release},
+        atomic::{
+            AtomicU64,
+            Ordering::{Relaxed, Release},
+        },
         Mutex,
     },
 };
@@ -14,16 +18,22 @@ use pneuma::{
     uthread::{Context, ReprContext, UThread},
 };
 
-const MAX_WORK_PER_WORKER: usize = 16;
+use crate::uthread::WorkerType;
+
+use super::blocking_pool::BlockingPool;
+
+const MAX_WORK_PER_WORKER: usize = 32;
+mod queue;
 
 #[derive(Default)]
 pub(crate) struct Executor {
     pub current: ThreadLocal<Mutex<UThread>>,
     pub os_thread: ThreadLocal<UThread>,
-    pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
-    pub stealers: ThreadLocal<Stealer<UThread>>,
-    pub injector: crossbeam_deque::Injector<UThread>,
     pub unused_stacks: Mutex<Vec<Stack>>,
+    pub worker_type: ThreadLocal<WorkerType>,
+    pub blocking_pool: BlockingPool,
+    pub async_queue: Queue,
+    pub blocking_queue: Queue,
 }
 
 impl Executor {
@@ -55,7 +65,7 @@ impl Executor {
     }
 
     fn pop(&self) -> Option<UThread> {
-        let worker = self.worker();
+        let worker = self.queue().worker();
 
         let os_thread = self.pop_os_thread(worker);
 
@@ -69,7 +79,7 @@ impl Executor {
             return thread;
         }
 
-        if cfg!(feature = "unsafe_work_stealing") {
+        if self.work_stealing() {
             return self.steal(worker);
         }
 
@@ -105,6 +115,7 @@ impl Executor {
 
     pub fn try_steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
         let steal = self
+            .queue()
             .injector
             .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);
 
@@ -112,7 +123,7 @@ impl Executor {
             return steal;
         }
 
-        let mut stealers: Vec<_> = self.stealers.iter().collect();
+        let mut stealers: Vec<_> = self.queue().stealers.iter().collect();
 
         fastrand::shuffle(&mut stealers);
 
@@ -123,26 +134,8 @@ impl Executor {
             .unwrap_or(Steal::Empty)
     }
 
-    pub fn worker(&self) -> &Worker<UThread> {
-        self.worker.get_or(|| {
-            let worker = crossbeam_deque::Worker::new_fifo();
-            self.stealers.get_or(|| worker.stealer());
-            worker
-        })
-    }
-
     pub fn push(&self, thread: UThread) {
-        if fastrand::u8(0..12) == 0 {
-            return self.injector.push(thread);
-        }
-
-        let worker = self.worker();
-
-        if worker.len() < MAX_WORK_PER_WORKER {
-            return worker.push(thread);
-        }
-
-        self.injector.push(thread)
+        self.queue().push(thread, self.worker_type())
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {
@@ -156,5 +149,24 @@ impl Executor {
         let mut stacks = self.unused_stacks.lock().ignore_poison();
         let i = stacks.iter().position(|stack| stack.size >= stack_size)?;
         Some(stacks.swap_remove(i))
+    }
+
+    pub(crate) fn work_stealing(&self) -> bool {
+        cfg!(feature = "unsafe_work_stealing") && self.worker_type() == WorkerType::ASYNC_WORKER
+    }
+
+    pub(crate) fn set_worker_type(&self, worker_type: WorkerType) {
+        self.worker_type.get_or(|| worker_type);
+    }
+
+    pub(crate) fn worker_type(&self) -> WorkerType {
+        *self.worker_type.get_or(|| WorkerType::ASYNC_WORKER)
+    }
+
+    pub(crate) fn queue(&self) -> &Queue {
+        match self.worker_type() {
+            WorkerType::ASYNC_WORKER => &self.async_queue,
+            WorkerType::BLOCKING_WORKER => &self.blocking_queue,
+        }
     }
 }

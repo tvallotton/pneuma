@@ -6,15 +6,17 @@ use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     process::abort,
     ptr::NonNull,
-    sync::atomic::Ordering::*,
-    sync::atomic::{self},
+    sync::atomic::{self, AtomicBool, Ordering::*},
 };
 
-use pneuma::{runtime::current, sys};
+use pneuma::sys;
 
 use super::{
     builder::Builder,
-    lifecycle::{FINISHED, NEW, OS_THREAD, RUNNING, TAKEN},
+    lifecycle::{
+        WorkerType, ASYNC_WORKER, BLOCKING_WORKER, FINISHED, LOCKED, NEW, OS_THREAD, RUNNING,
+        TAKEN, UNLOCKED,
+    },
     repr_context::ReprContext,
     UThread,
 };
@@ -56,8 +58,13 @@ impl Context {
     }
 
     pub fn switch_to(self, new: Context) -> Result<(), ()> {
-        new.lock()?;
+        new.lock().map_err(|_| {
+            // we grabbed it before the uthread could call park()
+            new.as_uthread().unpark();
+        })?;
+
         let [old, _] = unsafe { sys::switch_context(self, new) };
+
         old.unlock();
 
         Ok(())
@@ -103,12 +110,12 @@ impl Context {
             .map_err(|_| ())
     }
 
-    pub fn unlock(self) {
+    pub fn unlock(&self) {
         self.is_running.store(false, Release);
 
         if self.has_exited() {
             self.wake_joiner();
-            current().executor.recycle(&self);
+            pneuma::runtime().executor.recycle(&self);
         }
     }
 
