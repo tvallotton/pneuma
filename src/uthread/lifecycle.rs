@@ -1,4 +1,6 @@
-pub use WorkerType::*;
+use std::default;
+
+pub use QueueType::*;
 
 // LIFECYCLE
 
@@ -10,12 +12,28 @@ pub const OS_THREAD: u8 = 4;
 
 // WORKER QUEUES
 
-#[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum WorkerType {
-    ASYNC_WORKER = 0,
-    BLOCKING_WORKER = 1,
-}
-
 pub const UNLOCKED: bool = false;
 pub const LOCKED: bool = true;
+
+#[repr(u8)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+pub enum QueueType {
+    #[default]
+    ASYNC = 0,
+    BLOCKING = 1,
+}
+
+impl From<u8> for QueueType {
+    fn from(value: u8) -> Self {
+        match value & 1 {
+            1 => BLOCKING,
+            _ => ASYNC,
+        }
+    }
+}
+
+impl Into<u8> for QueueType {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}

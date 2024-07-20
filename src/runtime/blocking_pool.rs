@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    uthread::{self, UThread, WorkerType},
+    uthread::{self, UThread, QueueType},
     utils::IgnorePoison,
 };
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
@@ -17,10 +17,7 @@ const KEEP_ALIVE: Duration = Duration::from_secs(15);
 
 pub struct BlockingPool {
     pub n_workers: AtomicUsize,
-    pub tx_rendezvous: Sender<UThread>,
-    pub rx_rendezvous: Receiver<UThread>,
-    pub tx_unbounded: Sender<UThread>,
-    pub rx_unbounded: Receiver<UThread>,
+
 }
 
 impl BlockingPool {
@@ -52,13 +49,13 @@ impl BlockingPool {
     fn switch_to_blocking_pool(self: Arc<Self>) {
         let uthread = pneuma::uthread::current();
         self.send(uthread);
-        pneuma::runtime().park(WorkerType::BLOCKING_WORKER);
+        pneuma::runtime().park(QueueType::BLOCKING);
     }
 
     fn switch_from_blocking_pool(self: Arc<Self>) {
         let uthread = pneuma::uthread::current();
         uthread.unpark();
-        pneuma::runtime().park(WorkerType::ASYNC_WORKER);
+        pneuma::runtime().park(QueueType::ASYNC);
         todo!()
     }
 
@@ -93,7 +90,7 @@ impl BlockingPool {
 
     fn worker_loop(self: Arc<Self>, option: Option<UThread>) {
         let executor = pneuma::runtime().executor;
-        executor.set_worker_type(WorkerType::BLOCKING_WORKER);
+        executor.set_worker_type(QueueType::BLOCKING);
 
         let rx = [&self.rx_rendezvous, &self.rx_unbounded];
         let mut select = crossbeam_channel::Select::new();

@@ -18,7 +18,7 @@ use pneuma::{
     uthread::{Context, ReprContext, UThread},
 };
 
-use crate::uthread::WorkerType;
+use crate::uthread::QueueType;
 
 use super::blocking_pool::BlockingPool;
 
@@ -30,13 +30,21 @@ pub(crate) struct Executor {
     pub current: ThreadLocal<Mutex<UThread>>,
     pub os_thread: ThreadLocal<UThread>,
     pub unused_stacks: Mutex<Vec<Stack>>,
-    pub worker_type: ThreadLocal<WorkerType>,
+    pub queue_type: ThreadLocal<QueueType>,
     pub blocking_pool: BlockingPool,
     pub async_queue: Queue,
     pub blocking_queue: Queue,
 }
 
 impl Executor {
+    pub fn new() -> Executor {
+
+        
+        let mut exec = Executor::default();
+        exec.blocking_queue.ty = QueueType::BLOCKING;
+        exec
+    }
+
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
 
@@ -44,7 +52,7 @@ impl Executor {
 
         let old = self.set_current(new.clone());
 
-        if (old != new) && !new.cx.has_exited() {
+        if (old != new) && !new.cx.has_exited() && self.queue_type() == new.queue_type() {
             old.cx.switch_to(new.cx)?;
         }
 
@@ -80,6 +88,7 @@ impl Executor {
         }
 
         if self.work_stealing() {
+            self.queue(self.queue_type()).steal(worker)
             return self.steal(worker);
         }
 
@@ -92,11 +101,12 @@ impl Executor {
         };
 
         let os_thread = self.os_thread.get().cloned()?;
+        
 
         os_thread
             .cx
             .is_queued
-            .compare_exchange(true, false, Release, Relaxed)
+            .compare_exchange(queue_type, QueueType, Release, Relaxed)
             .ok()?;
 
         self.os_thread.get().cloned()
@@ -114,8 +124,8 @@ impl Executor {
     }
 
     pub fn try_steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
-        let steal = self
-            .queue()
+        let queue = self.queue(self.queue_type());
+        let steal = queue
             .injector
             .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);
 
@@ -123,7 +133,7 @@ impl Executor {
             return steal;
         }
 
-        let mut stealers: Vec<_> = self.queue().stealers.iter().collect();
+        let mut stealers: Vec<_> = queue.stealers.iter().collect();
 
         fastrand::shuffle(&mut stealers);
 
@@ -135,7 +145,7 @@ impl Executor {
     }
 
     pub fn push(&self, thread: UThread) {
-        self.queue().push(thread, self.worker_type())
+        self.queue(thread.queue_type()).push(thread)
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {
@@ -152,21 +162,21 @@ impl Executor {
     }
 
     pub(crate) fn work_stealing(&self) -> bool {
-        cfg!(feature = "unsafe_work_stealing") && self.worker_type() == WorkerType::ASYNC_WORKER
+        cfg!(feature = "unsafe_work_stealing") && self.queue_type() == QueueType::ASYNC
     }
 
-    pub(crate) fn set_worker_type(&self, worker_type: WorkerType) {
-        self.worker_type.get_or(|| worker_type);
+    pub(crate) fn set_worker_type(&self, worker_type: QueueType) {
+        self.queue_type.get_or(|| worker_type);
     }
 
-    pub(crate) fn worker_type(&self) -> WorkerType {
-        *self.worker_type.get_or(|| WorkerType::ASYNC_WORKER)
+    pub(crate) fn queue_type(&self) -> QueueType {
+        *self.queue_type.get_or(|| QueueType::ASYNC)
     }
 
-    pub(crate) fn queue(&self) -> &Queue {
-        match self.worker_type() {
-            WorkerType::ASYNC_WORKER => &self.async_queue,
-            WorkerType::BLOCKING_WORKER => &self.blocking_queue,
+    pub(crate) fn queue(&self, queue_type: QueueType) -> &Queue {
+        match queue_type {
+            QueueType::ASYNC => &self.async_queue,
+            QueueType::BLOCKING => &self.blocking_queue,
         }
     }
 }

@@ -14,12 +14,13 @@ pub(crate) use self::repr_context::ReprContext;
 use self::thread_id::UThreadId;
 pub use builder::Builder;
 pub use join_handle::JoinHandle;
-pub(crate) use lifecycle::WorkerType;
+pub(crate) use lifecycle::QueueType;
 pub use scoped::{scope, Scope, ScopedJoinHandle};
 use std::fmt;
-use std::sync::atomic::Ordering::*;
+use std::sync::atomic::Ordering::{self, *};
 pub use yield_now::yield_now;
 
+mod block;
 mod builder;
 mod context;
 mod join_handle;
@@ -157,12 +158,12 @@ impl UThread {
             .is_err();
 
         if !already_queued {
-            self.queue();
+            self.enqueue();
         }
     }
 
     #[inline]
-    fn queue(&self) {
+    fn enqueue(&self) {
         if let OS_THREAD = self.cx.lifecycle.load(Relaxed) {
             return;
         }
@@ -172,6 +173,14 @@ impl UThread {
     pub(crate) fn for_os_thread() -> UThread {
         let cx = Context::for_os_thread();
         UThread { cx }
+    }
+
+    pub fn queue_type(&self) -> QueueType {
+        self.cx.queue_type.load(Relaxed).into()
+    }
+
+    pub fn set_queue_type(&self, mode: QueueType) {
+        self.cx.queue_type.store(mode.into(), Relaxed);
     }
 }
 
@@ -196,20 +205,15 @@ impl UThread {
 /// ```
 #[must_use]
 pub fn current() -> UThread {
-    pneuma::runtime()
-        .executor
-        .current_thread()
-        .lock()
-        .unwrap()
-        .clone()
+    pneuma::runtime().current()
 }
 
 #[track_caller]
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
-    let rt = pneuma::runtime::current();
-    rt.park(rt.executor.worker_type())
+    let rt = pneuma::runtime();
+    rt.park()
 }
 
 pub fn spawn<F, T>(f: F) -> JoinHandle<T>

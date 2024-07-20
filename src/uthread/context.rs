@@ -14,8 +14,7 @@ use pneuma::sys;
 use super::{
     builder::Builder,
     lifecycle::{
-        WorkerType, ASYNC_WORKER, BLOCKING_WORKER, FINISHED, LOCKED, NEW, OS_THREAD, RUNNING,
-        TAKEN, UNLOCKED,
+        QueueType, ASYNC, BLOCKING, FINISHED, LOCKED, NEW, OS_THREAD, RUNNING, TAKEN, UNLOCKED,
     },
     repr_context::ReprContext,
     UThread,
@@ -74,14 +73,14 @@ impl Context {
         new.is_queued.store(false, Relaxed);
         old.unlock();
 
-        new.run_uthread();
+        new.uthread_main();
 
         loop {
             pneuma::uthread::park().ok();
         }
     }
 
-    pub fn run_uthread(self) {
+    pub fn uthread_main(self) {
         let f = unsafe { self.fun.as_mut().unwrap() };
 
         self.lifecycle.store(RUNNING, Release);
@@ -89,11 +88,10 @@ impl Context {
         f(self.out.cast());
         self.lifecycle.store(FINISHED, Release);
 
-        self.join_waker
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map(UThread::unpark);
+        // Note: we will call this effectively twice, once here and
+        // another on unlock, but we need this because there might not
+        // be another task to call unlock for us.
+        self.wake_joiner();
     }
 
     pub fn wake_joiner(&self) {
@@ -111,12 +109,11 @@ impl Context {
     }
 
     pub fn unlock(&self) {
-        self.is_running.store(false, Release);
-
         if self.has_exited() {
             self.wake_joiner();
             pneuma::runtime().executor.recycle(&self);
         }
+        self.is_running.store(false, Release);
     }
 
     pub fn has_exited(&self) -> bool {

@@ -1,20 +1,21 @@
-use crossbeam_deque::{Stealer, Worker};
+use crossbeam_deque::{Steal, Stealer, Worker};
 use thread_local::ThreadLocal;
 
-use crate::uthread::{UThread, WorkerType};
+use crate::uthread::{QueueType, UThread};
 
 use super::MAX_WORK_PER_WORKER;
 
 #[derive(Default)]
 pub(crate) struct Queue {
+    pub ty: QueueType,
     pub worker: ThreadLocal<Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
     pub injector: crossbeam_deque::Injector<UThread>,
 }
 
 impl Queue {
-    pub fn push(&self, thread: UThread, ty: WorkerType) {
-        if ty == WorkerType::BLOCKING_WORKER {
+    pub fn push(&self, thread: UThread) {
+        if self.ty == QueueType::BLOCKING {
             return self.injector.push(thread);
         }
 
@@ -59,5 +60,35 @@ impl Queue {
             self.stealers.get_or(|| worker.stealer());
             worker
         })
+    }
+
+    pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
+        loop {
+            let steal = self.try_steal(worker);
+
+            if steal.is_retry() {
+                continue;
+            }
+            return steal.success();
+        }
+    }
+    pub fn try_steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
+        let steal = self
+            .injector
+            .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);
+
+        if !steal.is_empty() {
+            return steal;
+        }
+
+        let mut stealers: Vec<_> = self.stealers.iter().collect();
+
+        fastrand::shuffle(&mut stealers);
+
+        stealers
+            .iter()
+            .map(|s| s.steal_batch_and_pop(worker))
+            .find(|steal| steal.is_success())
+            .unwrap_or(Steal::Empty)
     }
 }

@@ -3,12 +3,12 @@ use std::{
     sync::atomic::{AtomicU64, Ordering::Release},
 };
 
-pub(crate) use globals::current;
+pub(crate) use globals::runtime;
 use pneuma::{reactor::Reactor, sys::signal_stack::SignalStack};
 
 use executor::Executor;
 
-use crate::uthread::WorkerType;
+use crate::uthread::{QueueType, UThread};
 mod blocking_pool;
 mod executor;
 mod globals;
@@ -23,7 +23,7 @@ pub(crate) struct Runtime {
 impl Runtime {
     fn new() -> io::Result<Self> {
         let tick = AtomicU64::new(0);
-        let executor = Executor::default();
+        let executor = Executor::new();
         let reactor = Reactor::new()?;
         let _signal_stack = SignalStack::new()?;
 
@@ -35,7 +35,7 @@ impl Runtime {
         })
     }
 
-    pub fn park(&self, to_queue: WorkerType) -> io::Result<()> {
+    pub fn park(&self) -> io::Result<()> {
         self.increment_tick()?;
 
         // NOTE: we might never return
@@ -44,7 +44,6 @@ impl Runtime {
 
         if res.is_err() {
             self.reactor.submit_and_wait()?;
-
             self.executor.context_switch().ok();
         }
 
@@ -58,5 +57,13 @@ impl Runtime {
         }
 
         Ok(())
+    }
+
+    pub fn current(&self) -> UThread {
+        self.executor //
+            .current_thread()
+            .lock()
+            .unwrap()
+            .clone()
     }
 }

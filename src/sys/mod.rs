@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 
 use pneuma::uthread::{Context, ReprContext};
 
-use crate::uthread::WorkerType;
+use crate::uthread::QueueType;
 
 pub(crate) mod signal_stack;
 pub(crate) mod stack;

@@ -36,7 +36,6 @@ pub mod sync;
 pub mod uthread;
 pub mod utils;
 
-
 #[cfg(feature = "io")]
 pub mod net;
 #[cfg(feature = "io")]
@@ -44,5 +43,4 @@ pub mod reactor;
 #[cfg(feature = "io")]
 pub mod time;
 
-
-use pneuma::runtime::current as runtime;
+use pneuma::runtime::runtime;

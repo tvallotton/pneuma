@@ -15,7 +15,7 @@ use std::alloc::alloc;
 
 use super::{
     builder::Builder, context::Context, lifecycle::OS_THREAD, registers::Registers,
-    thread_id::UThreadId, UThread,
+    thread_id::UThreadId, QueueType, UThread,
 };
 use pneuma::{sys::stack::Stack, uthread::lifecycle::NEW};
 
@@ -33,6 +33,8 @@ pub struct ReprContext {
     pub is_queued: AtomicBool,
 
     pub is_running: AtomicBool,
+
+    pub queue_type: AtomicU8,
 
     pub panic_flag: AtomicU8,
 
@@ -78,6 +80,7 @@ impl ReprContext {
             layout,
             fun,
             out,
+            queue_type: (QueueType::ASYNC as u8).into(),
             #[cfg(target_os = "linux")]
             io_uring_result: 0.into(),
         });
