@@ -62,7 +62,7 @@ impl<T: Send + Sync + Node> GlobalQueue<T> {
     pub fn push_batch_front(&self, nodes: impl DoubleEndedIterator<Item = T>) {
         let mut queue = self.queue.lock().ignore_poison();
 
-        for node in nodes {
+        for node in nodes.rev() {
             *node.next() = queue.head;
             dbg!();
             let repr = node.into_repr();

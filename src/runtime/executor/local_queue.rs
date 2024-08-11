@@ -51,8 +51,11 @@ impl<T> LocalQueue<T> {
         let mut buffer: [MaybeUninit<T>; MAX_WORK_PER_WORKER] =
             array::from_fn(|_| MaybeUninit::uninit());
 
-        let output = |buffer: [MaybeUninit<T>; MAX_WORK_PER_WORKER]| {
-            buffer.into_iter().map(|mu| unsafe { mu.assume_init() })
+        let output = |buffer: [MaybeUninit<T>; MAX_WORK_PER_WORKER], take| {
+            buffer
+                .into_iter()
+                .take(take)
+                .map(|mu| unsafe { mu.assume_init() })
         };
 
         for _ in 0..MAX_NUM_RETRIES {
@@ -60,10 +63,10 @@ impl<T> LocalQueue<T> {
                 continue;
             };
 
-            return output(buffer).take(read);
+            return output(buffer, read);
         }
 
-        output(buffer).take(0)
+        output(buffer, 0)
     }
 
     #[inline]
