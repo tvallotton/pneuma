@@ -79,9 +79,3 @@ impl<T> Debug for Stealer<T> {
             .finish()
     }
 }
-
-impl<T> Drop for Worker<T> {
-    fn drop(&mut self) {
-        pneuma::runtime().executor.block_worker();
-    }
-}

@@ -106,7 +106,7 @@ impl Reactor {
     }
 
     pub fn submit_and_wait(&self) -> io::Result<()> {
-        self.submit(Some(Duration::from_millis(100)))
+        self.submit(Some(Duration::from_secs(30)))
     }
 
     fn submit(&self, timeout: Option<Duration>) -> io::Result<()> {

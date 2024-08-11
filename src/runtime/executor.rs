@@ -49,6 +49,7 @@ pub(crate) struct Executor {
 impl Executor {
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
+
         new.cx.is_queued.store(false, Relaxed);
         let old = self.set_current(new.clone());
         if (old != new) && !new.cx.has_exited() {
@@ -59,6 +60,7 @@ impl Executor {
 
     pub(crate) fn current_thread(&self) -> &Mutex<(UThread, Instant)> {
         self.current.get_or(|| {
+            self.worker_scheduler.increment();
             let instant = Instant::now();
             let os_thread = UThread::for_os_thread();
             self.os_thread.get_or(|| os_thread.clone());
@@ -75,6 +77,7 @@ impl Executor {
     fn pop(&self) -> Option<UThread> {
         let worker = self.worker();
         let os_thread = self.pop_os_thread(worker);
+
         if os_thread.is_some() {
             return os_thread;
         };
@@ -86,7 +89,7 @@ impl Executor {
         }
 
         if cfg!(feature = "unsafe_work_stealing") && !worker.is_blocked.load(Relaxed) {
-            return self.steal(worker);
+            return dbg!(self.steal(worker));
         }
 
         None
@@ -110,6 +113,7 @@ impl Executor {
 
     pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
         self.try_steal(worker);
+
         self.worker().pop()
     }
 
@@ -117,13 +121,13 @@ impl Executor {
         let stolen = self
             .worker()
             .push_batch(|| self.global.pop_batch_front().into_iter());
-
+        dbg!(stolen);
         if stolen > 0 {
             return;
         }
 
         let mut stealers: Vec<_> = self.stealers.iter().collect();
-
+        dbg!(&stealers);
         fastrand::shuffle(&mut stealers);
 
         stealers
@@ -171,14 +175,17 @@ impl Executor {
     }
 
     pub(crate) fn block_worker(&self) {
+        self.worker_scheduler.mark_as_blocking();
+
         let worker = self.worker();
         let batch = worker.pop_batch();
         self.global.push_batch_front(batch.into_iter());
-        worker.is_blocked.store(false, Relaxed);
+        worker.is_blocked.store(true, Relaxed);
     }
 
     pub(crate) fn unblock_worker(&self) {
-        self.worker().is_blocked.store(true, Relaxed)
+        self.worker_scheduler.mark_as_async();
+        self.worker().is_blocked.store(false, Relaxed);
     }
 
     pub(crate) fn free_unused_memory(&self) {

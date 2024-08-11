@@ -32,10 +32,14 @@ impl Default for WorkerScheduler {
 }
 
 impl WorkerScheduler {
+    pub fn increment(&self) {
+        self.0.lock().ignore_poison().total_n_workers += 1;
+    }
+
     pub fn set_bounds(&self, max: u16, min: u16) {
         assert!(
-            0 < max,
-            "The maximum number of workers allowed must be greater than zero."
+            1 < max,
+            "The maximum number of workers allowed must be greater than one."
         );
         assert!(
             min < max,
@@ -63,11 +67,11 @@ impl Inner {
     pub fn mark_as_blocking(&mut self) {
         self.n_blocking_workers += 1;
 
-        if !self.needs_more_workers() {
+        if dbg!(!self.needs_more_workers()) {
             return;
         }
 
-        if self.can_spawn_more_workers() {
+        if dbg!(self.can_spawn_more_workers()) {
             self.spawn_worker();
         } else {
             self.wait_for_a_blocking_worker_to_become_async();
