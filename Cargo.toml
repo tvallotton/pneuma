@@ -8,7 +8,7 @@ edition = "2021"
 debug = true
 
 [features]
-default = []
+default = ["io", "unsafe_work_stealing", "net", "fs"]
 tokio_compat = ["tokio"]
 unsafe_work_stealing = []
 net = ["dns-protocol", "memchr", "mio"]
@@ -39,8 +39,11 @@ io-uring = { version = "0.6.2", optional = true }
 
 
 [dev-dependencies]
-pneuma = { path = ".", features = ["io", "unsafe_work_stealing"] }
+pneuma = { path = ".", features = ["io", "unsafe_work_stealing", "net", "fs"] }
 rand = "0.8.5"
 
 [build-dependencies]
 cfg_aliases = "0.1.0"
+
+# [target.'cfg(loom)'.dependencies]
+# loom = "0.7"

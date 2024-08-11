@@ -12,8 +12,21 @@
 //! Spawning a uthread is significatly cheaper than spawning a kernel thread.
 //! Additionally, context switching between them does not require a change of the address space.
 //!
+//! Even though pneuma uthreads do not explicitly split the world between sync and async functions,
+//! it does share the split between blocking and nonblocking code.
 //!
 //!
+//! # Blocking
+//! It is important to notify the pneuma scheduler when you are about to perform a blocking operation.
+//! by notifying the scheduler, pneuma can move the waiting coroutines to a new worker thread that is
+//! not blocked.
+//! ```rust
+//!
+//! pneuma::block(|| {
+//!     sleep(Duration::from_secs(1));
+//! })
+//! ```
+//! pneuma::runtime::set_workers(min, max)
 //!
 //!
 //!
@@ -38,7 +51,7 @@ pub mod utils;
 
 #[cfg(feature = "io")]
 pub mod net;
-#[cfg(feature = "io")]
+// #[cfg(feature = "io")]
 pub mod reactor;
 #[cfg(feature = "io")]
 pub mod time;

@@ -26,8 +26,10 @@ fn mutex_contention() {
             let mut guard = mutex.lock();
             for _ in 0..10 {
                 yield_now();
+                dbg!(i);
             }
             *guard += 1;
+            dbg!(i);
         });
         handles.push(handle);
     }

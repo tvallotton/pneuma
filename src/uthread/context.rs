@@ -6,8 +6,8 @@ use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     process::abort,
     ptr::NonNull,
-    sync::atomic::Ordering::*,
-    sync::atomic::{self},
+    sync::atomic::{self, Ordering::*},
+    thread::panicking,
 };
 
 use pneuma::{runtime::current, sys};
@@ -157,6 +157,7 @@ impl Clone for Context {
 }
 
 impl Drop for Context {
+    #[track_caller]
     fn drop(&mut self) {
         if self.refcount.fetch_sub(1, Release) != 1 {
             return;

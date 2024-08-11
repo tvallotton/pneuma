@@ -1038,24 +1038,24 @@ fn binary_file() {
 
 #[test]
 fn write_then_read() {
-    dbg!();
+    
     let mut bytes = [0; 1024];
-    dbg!();
+    
     rand::thread_rng().fill_bytes(&mut bytes);
-    dbg!();
+    
     let tmpdir = tmpdir();
-    dbg!();
+    
     check!(fs::write(&tmpdir.join("test"), &bytes[..]));
     let v = check!(fs::read(&tmpdir.join("test")));
     assert!(v == &bytes[..]);
-    dbg!();
+    
     check!(fs::write(&tmpdir.join("not-utf8"), &[0xFF]));
 
     error_contains!(fs::read_to_string(&tmpdir.join("not-utf8")), "valid utf-8");
-    dbg!();
+    
     let s = "𐁁𐀓𐀠𐀴𐀍";
     check!(fs::write(&tmpdir.join("utf8"), s.as_bytes()));
-    dbg!();
+    
     let string = check!(fs::read_to_string(&tmpdir.join("utf8")));
     assert_eq!(string, s);
 }

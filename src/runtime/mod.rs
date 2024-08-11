@@ -33,17 +33,18 @@ impl Runtime {
     }
 
     pub fn park(&self) -> io::Result<()> {
+        dbg!();
         self.increment_tick()?;
-
+        dbg!();
         // NOTE: we might never return
         // better not leave any variables undropped
         let res = self.executor.context_switch();
-
+        dbg!();
         if res.is_err() {
             self.reactor.submit_and_wait()?;
-
             self.executor.context_switch().ok();
-        }
+        };
+        dbg!();
 
         Ok(())
     }

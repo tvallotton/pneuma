@@ -1,18 +1,29 @@
-use crossbeam_deque::{Steal, Stealer, Worker};
+use crossbeam_deque::Steal;
+use global_queue::GlobalQueue;
+use local_queue::LocalQueue;
 use pneuma::utils::IgnorePoison;
 use std::{
+    alloc::GlobalAlloc,
     mem::replace,
+    ptr,
     sync::{
         atomic::Ordering::{Relaxed, Release},
         Mutex,
     },
 };
 use thread_local::ThreadLocal;
+use worker::{Stealer, Worker};
 
 use pneuma::{
     sys::stack::Stack,
     uthread::{Context, ReprContext, UThread},
 };
+
+mod global_queue;
+mod local_queue;
+#[cfg(test)]
+mod test;
+mod worker;
 
 const MAX_WORK_PER_WORKER: usize = 16;
 
@@ -20,24 +31,21 @@ const MAX_WORK_PER_WORKER: usize = 16;
 pub(crate) struct Executor {
     pub current: ThreadLocal<Mutex<UThread>>,
     pub os_thread: ThreadLocal<UThread>,
-    pub worker: ThreadLocal<crossbeam_deque::Worker<UThread>>,
+    pub worker: ThreadLocal<Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
-    pub injector: crossbeam_deque::Injector<UThread>,
+    pub global: GlobalQueue<UThread>,
+    // pub global: GlobalQueue<UThread>,
     pub unused_stacks: Mutex<Vec<Stack>>,
 }
 
 impl Executor {
     pub fn context_switch(&self) -> Result<(), ()> {
         let new = self.pop().ok_or(())?;
-
         new.cx.is_queued.store(false, Relaxed);
-
         let old = self.set_current(new.clone());
-
         if (old != new) && !new.cx.has_exited() {
             old.cx.switch_to(new.cx)?;
-        }
-
+        };
         Ok(())
     }
 
@@ -56,12 +64,10 @@ impl Executor {
 
     fn pop(&self) -> Option<UThread> {
         let worker = self.worker();
-
         let os_thread = self.pop_os_thread(worker);
-
         if os_thread.is_some() {
             return os_thread;
-        }
+        };
 
         let thread = worker.pop();
 
@@ -70,6 +76,7 @@ impl Executor {
         }
 
         if cfg!(feature = "unsafe_work_stealing") {
+            dbg!();
             return self.steal(worker);
         }
 
@@ -93,39 +100,40 @@ impl Executor {
     }
 
     pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
-        loop {
-            let steal = self.try_steal(worker);
+        dbg!();
+        self.try_steal(worker);
 
-            if steal.is_retry() {
-                continue;
-            }
-            return steal.success();
-        }
+        dbg!(self.worker().pop())
     }
 
-    pub fn try_steal(&self, worker: &Worker<UThread>) -> Steal<UThread> {
-        let steal = self
-            .injector
-            .steal_batch_with_limit_and_pop(worker, MAX_WORK_PER_WORKER);
+    pub fn try_steal(&self, worker: &Worker<UThread>) {
+        let stolen = self
+            .worker()
+            .push_batch(|| self.global.pop_batch().into_iter());
 
-        if !steal.is_empty() {
-            return steal;
+        if stolen > 0 {
+            return;
         }
-
+        dbg!();
         let mut stealers: Vec<_> = self.stealers.iter().collect();
-
+        dbg!();
         fastrand::shuffle(&mut stealers);
+
+        dbg!(&stealers);
 
         stealers
             .iter()
-            .map(|s| s.steal_batch_and_pop(worker))
-            .find(|steal| steal.is_success())
-            .unwrap_or(Steal::Empty)
+            .map(|s| worker.push_batch(|| s.pop().into_iter()))
+            .filter(|x| *x > 1)
+            .take(1)
+            .for_each(|stolen| {
+                dbg!(stolen);
+            });
     }
 
     pub fn worker(&self) -> &Worker<UThread> {
         self.worker.get_or(|| {
-            let worker = crossbeam_deque::Worker::new_fifo();
+            let worker = Worker::with_capacity(MAX_WORK_PER_WORKER);
             self.stealers.get_or(|| worker.stealer());
             worker
         })
@@ -133,16 +141,14 @@ impl Executor {
 
     pub fn push(&self, thread: UThread) {
         if fastrand::u8(0..12) == 0 {
-            return self.injector.push(thread);
+            return self.global.push(thread);
         }
 
-        let worker = self.worker();
+        let Some(thread) = self.worker().push(thread) else {
+            return;
+        };
 
-        if worker.len() < MAX_WORK_PER_WORKER {
-            return worker.push(thread);
-        }
-
-        self.injector.push(thread)
+        self.global.push(thread);
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {
@@ -157,4 +163,16 @@ impl Executor {
         let i = stacks.iter().position(|stack| stack.size >= stack_size)?;
         Some(stacks.swap_remove(i))
     }
+
+    // pub(crate) fn mark_as_blocking(&self) {
+    //     let worker = self.worker();
+
+    //     while let Some(thread) = worker.pop() {
+    //         self.global.push_batch(nodes);
+    //     }
+
+    //     while let Some(work) = worker.pop() {
+    //         self.global.push(work);
+    //     }
+    // }
 }

@@ -46,7 +46,7 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
             return Err(io::Error::other("failed to create whole tree"));
         }
     }
-    dbg!();
+
     match create_dir(path) {
         Ok(()) => Ok(()),
         Err(_) if path.is_dir() => Ok(()),
