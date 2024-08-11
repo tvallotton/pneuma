@@ -37,36 +37,44 @@ impl<T: Send + Sync + Node> GlobalQueue<T> {
         }
     }
 
-    pub fn push(&self, node: T) {
-        self.push_batch([node])
-    }
-
-    pub fn pop(&self) -> Option<T> {
-        self.pop_batch().into_iter().next()
-    }
-
-    pub fn push_batch(&self, nodes: impl IntoIterator<Item = T>) {
+    pub fn push_back(&self, node: T) {
         let mut queue = self.queue.lock().ignore_poison();
-        for node in nodes {
-            *node.next() = null_mut();
+        *node.next() = null_mut();
+
+        if queue.head.is_null() {
+            queue.tail = node.into_repr();
+            queue.head = queue.tail;
+            return;
+        }
+
+        let tail: T = Node::from_repr(queue.tail);
+
+        *tail.next() = node.into_repr();
+        queue.tail = *tail.next();
+
+        forget(tail);
+    }
+
+    pub fn pop_front(&self) -> Option<T> {
+        self.pop_batch_front().into_iter().next()
+    }
+
+    pub fn push_batch_front(&self, nodes: impl DoubleEndedIterator<Item = T>) {
+        let mut queue = self.queue.lock().ignore_poison();
+
+        for node in nodes.rev() {
+            *node.next() = queue.head;
+            let repr = node.into_repr();
 
             if queue.head.is_null() {
-                queue.tail = node.into_repr();
-                queue.head = queue.tail;
-
-                continue;
+                queue.tail = repr;
             }
 
-            let tail: T = Node::from_repr(queue.tail);
-
-            *tail.next() = node.into_repr();
-            queue.tail = *tail.next();
-
-            forget(tail);
+            queue.head = repr;
         }
     }
 
-    pub fn pop_batch(&self) -> impl IntoIterator<Item = T> + '_ {
+    pub fn pop_batch_front(&self) -> impl IntoIterator<Item = T> + '_ {
         let mut queue = self.queue.lock().ignore_poison();
         std::iter::from_fn(move || {
             if queue.head.is_null() {

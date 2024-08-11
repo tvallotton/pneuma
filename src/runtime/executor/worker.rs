@@ -1,8 +1,14 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::Debug,
+    sync::{atomic::AtomicBool, Arc},
+};
+
+use crate::uthread::UThread;
 
 use super::local_queue::LocalQueue;
 
 pub struct Worker<T> {
+    pub is_blocked: AtomicBool,
     queue: Arc<LocalQueue<T>>,
 }
 
@@ -14,7 +20,8 @@ impl<T> Worker<T> {
     pub fn with_capacity(capacity: usize) -> Worker<T> {
         let queue = LocalQueue::with_capacity(capacity);
         let queue = Arc::new(queue);
-        Worker { queue }
+        let is_blocked = false.into();
+        Worker { queue, is_blocked }
     }
 
     pub fn push(&self, item: T) -> Option<T> {
@@ -39,7 +46,7 @@ impl<T> Worker<T> {
         self.queue.pop()
     }
 
-    pub fn pop_batch(&self) -> impl IntoIterator<Item = T> {
+    pub fn pop_batch(&self) -> impl DoubleEndedIterator<Item = T> {
         self.queue.pop_batch()
     }
 
@@ -59,8 +66,6 @@ impl<T> Stealer<T> {
     pub fn pop_batch(&self) -> impl IntoIterator<Item = T> {
         self.queue.pop_batch()
     }
-
-    pub fn steal(&self) {}
 }
 
 unsafe impl<T: Send> Send for Worker<T> {}
@@ -72,5 +77,11 @@ impl<T> Debug for Stealer<T> {
         f.debug_struct("Stealer")
             .field("len", &self.queue.len())
             .finish()
+    }
+}
+
+impl<T> Drop for Worker<T> {
+    fn drop(&mut self) {
+        pneuma::runtime().executor.block_worker();
     }
 }

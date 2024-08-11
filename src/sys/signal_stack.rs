@@ -76,10 +76,11 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
         std::process::abort();
     };
 
-    let Ok(mut thread) = lock.try_lock() else {
+    let Ok(guard) = lock.try_lock() else {
         raw_errln!("error: segmentation fault");
         std::process::abort();
     };
+    let thread = &guard.0;
 
     let name = thread.name().unwrap_or("<unknown>");
 

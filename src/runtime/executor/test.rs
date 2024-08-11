@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::thread::yield_now;
 
 use crate::runtime::executor::worker::Stealer;
+use crate::uthread::UThread;
 
 use super::local_queue;
 use super::GlobalQueue;
@@ -13,7 +14,7 @@ use super::LocalQueue;
 use super::Worker;
 
 #[test]
-fn push_and_pop() {
+fn local_push_and_pop() {
     let local_queue = LocalQueue::with_capacity(8);
 
     local_queue.push(9);
@@ -21,7 +22,7 @@ fn push_and_pop() {
 }
 
 #[test]
-fn push_and_pop_batch() {
+fn local_push_and_pop_batch() {
     let local_queue = LocalQueue::with_capacity(8);
 
     local_queue.push_batch(|| [1, 2, 3, 4].into_iter());
@@ -31,7 +32,7 @@ fn push_and_pop_batch() {
 }
 
 #[test]
-fn concurrent_push_and_pop() {
+fn local_concurrent_push_and_pop() {
     const NUMBER_OF_THREADS: usize = 10;
     let worker = Worker::with_capacity(16);
 
@@ -51,7 +52,7 @@ fn concurrent_push_and_pop() {
             });
         }
 
-        for i in 0..100 {
+        for i in 0..500 {
             loop {
                 if let None = worker.push(i) {
                     break;
@@ -60,11 +61,11 @@ fn concurrent_push_and_pop() {
             }
         }
     });
-    assert_eq!(total.load(Relaxed), 4950)
+    assert_eq!(total.load(Relaxed), 124750)
 }
 
 #[test]
-fn batched_concurrent_push_and_pop() {
+fn local_batched_concurrent_push_and_pop() {
     const NUMBER_OF_THREADS: usize = 10;
     let worker = Worker::with_capacity(16);
 
@@ -90,17 +91,29 @@ fn batched_concurrent_push_and_pop() {
                 }
             });
         }
-        let mut values = (0..100).into_iter().peekable();
+        let mut values = (0..500).into_iter().peekable();
 
         loop {
-            if dbg!(values.peek()).is_none() {
+            if values.peek().is_none() {
                 stop.store(true, Relaxed);
                 break;
             }
-            dbg!(worker.push_batch(|| &mut values));
+            worker.push_batch(|| &mut values);
 
             std::thread::yield_now();
         }
     });
-    assert_eq!(total.load(Relaxed), 4950)
+    assert_eq!(total.load(Relaxed), 124750)
+}
+
+#[test]
+fn global_push_and_pop() {
+    let queue = GlobalQueue::default();
+    assert!(queue.pop_front().is_none());
+
+    let thread = UThread::for_os_thread();
+    queue.push_back(thread.clone());
+
+    assert_eq!(queue.pop_front().unwrap(), thread);
+    assert!(queue.pop_front().is_none())
 }

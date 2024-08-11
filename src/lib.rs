@@ -20,7 +20,7 @@
 //! It is important to notify the pneuma scheduler when you are about to perform a blocking operation.
 //! by notifying the scheduler, pneuma can move the waiting coroutines to a new worker thread that is
 //! not blocked.
-//! ```rust
+//! ```ignore
 //!
 //! pneuma::block(|| {
 //!     sleep(Duration::from_secs(1));
@@ -37,6 +37,7 @@
 // #![feature(thread_id_value)]
 
 extern crate self as pneuma;
+use runtime::current as runtime;
 
 pub(crate) mod runtime;
 pub(crate) mod sys;

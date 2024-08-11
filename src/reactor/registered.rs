@@ -16,7 +16,6 @@ where
 {
     pub fn register(source: S, interests: mio::Interest) -> io::Result<Registered<S>> {
         let uthread = pneuma::uthread::current();
-        dbg!("lock");
 
         let uthread: usize = unsafe { transmute(uthread) };
         let mut registration = Registered {
@@ -33,7 +32,7 @@ where
             .registry()
             .register(&mut registration.source, mio::Token(uthread), interests)
             .map(|_| registration);
-        dbg!("release");
+
         res
     }
 

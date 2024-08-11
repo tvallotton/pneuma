@@ -47,7 +47,7 @@ impl<T> LocalQueue<T> {
         }
     }
 
-    pub fn pop_batch(&self) -> impl IntoIterator<Item = T> {
+    pub fn pop_batch(&self) -> impl DoubleEndedIterator<Item = T> {
         let mut buffer: [MaybeUninit<T>; MAX_WORK_PER_WORKER] =
             array::from_fn(|_| MaybeUninit::uninit());
 

@@ -33,18 +33,16 @@ impl Runtime {
     }
 
     pub fn park(&self) -> io::Result<()> {
-        dbg!();
         self.increment_tick()?;
-        dbg!();
+
         // NOTE: we might never return
         // better not leave any variables undropped
         let res = self.executor.context_switch();
-        dbg!();
+
         if res.is_err() {
             self.reactor.submit_and_wait()?;
             self.executor.context_switch().ok();
         };
-        dbg!();
 
         Ok(())
     }
@@ -53,6 +51,10 @@ impl Runtime {
         let prev = self.tick.fetch_add(1, Release);
         if prev % 61 == 0 {
             self.reactor.submit_and_yield()?;
+        }
+
+        if prev % 128 == 0 {
+            self.executor.free_unused_memory();
         }
 
         Ok(())

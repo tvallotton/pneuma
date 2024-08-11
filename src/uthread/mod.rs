@@ -202,6 +202,7 @@ pub fn current() -> UThread {
         .lock()
         .unwrap()
         .clone()
+        .0
 }
 #[track_caller]
 pub fn park() -> std::io::Result<()> {
@@ -217,6 +218,18 @@ where
     T: Send + 'static,
 {
     Builder::new().spawn(f).unwrap()
+}
+
+///
+/// Notifies the scheduler that the worker will be blocked. This allows the scheduler
+/// to move the coroutines in the local queue to another queue.
+///
+#[cfg(feature = "unsafe_work_stealing")]
+pub fn block<T>(f: impl FnOnce() -> T) -> T {
+    pneuma::runtime().executor.block_worker();
+    let output = f();
+    pneuma::runtime().executor.unblock_worker();
+    return output;
 }
 
 impl std::fmt::Debug for UThread {
