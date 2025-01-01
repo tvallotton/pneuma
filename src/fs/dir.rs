@@ -15,12 +15,70 @@ pub struct DirEntry {
     inner: std::fs::DirEntry,
 }
 
+/// Creates a new, empty directory at the provided path
+///
+/// [changes]: io#platform-specific-behavior
+///
+/// **NOTE**: If a parent of the given path doesn't exist, this function will
+/// return an error. To create a directory and all its missing parents at the
+/// same time, use the [`create_dir_all`] function.
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * User lacks permissions to create directory at `path`.
+/// * A parent of the given path doesn't exist. (To create a directory and all
+///   its missing parents at the same time, use the [`create_dir_all`]
+///   function.)
+/// * `path` already exists.
+///
+/// # Examples
+///
+/// ```no_run
+/// use pneuma::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     fs::create_dir("/some/dir")?;
+///     Ok(())
+/// }
+/// ```
 pub fn create_dir(path: impl AsRef<Path>) -> io::Result<()> {
     let path = cstr(path)?;
     op::mkdir_at(&path)?;
     Ok(())
 }
 
+/// Removes an empty directory.
+///
+/// [changes]: io#platform-specific-behavior
+///
+/// # Errors
+///
+/// This function will return an error in the following situations, but is not
+/// limited to just these cases:
+///
+/// * `path` doesn't exist.
+/// * `path` isn't a directory.
+/// * The user lacks permissions to remove the directory at the provided `path`.
+/// * The directory isn't empty.
+///
+/// This function will only ever return an error of kind `NotFound` if the given
+/// path does not exist. Note that the inverse is not true,
+/// ie. if a path does not exist, its removal may fail for a number of reasons,
+/// such as insufficient permissions.
+///
+/// # Examples
+///
+/// ```no_run
+/// use pneuma::fs;
+///
+/// fn main() -> std::io::Result<()> {
+///     fs::remove_dir("/some/dir")?;
+///     Ok(())
+/// }
+/// ```
 pub fn remove_dir(path: impl AsRef<Path>) -> io::Result<()> {
     let path = cstr(path)?;
     op::unlink_at(&path, libc::AT_REMOVEDIR)?;
@@ -53,46 +111,6 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
         Err(e) => Err(e),
     }
 }
-
-// pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
-//     let mut paths = vec![path.as_ref()];
-//     let mut retry = vec![];
-//     loop {
-//         let Some(path) = paths.pop() else {
-//             let Some(path) = paths.pop() else {
-//                 return Ok(());
-//             };
-
-//             match create_dir(path) {
-//                 Ok(()) => continue,
-//                 Err(_) if path.is_dir() => continue,
-//                 Err(e) => return Err(e),
-//             }
-//         };
-
-//         if path == Path::new("") {
-//             continue;
-//         }
-
-//         match create_dir(path) {
-//             Ok(()) => continue,
-//             Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}
-//             Err(_) if path.is_dir() => continue,
-//             Err(e) => return Err(e),
-//         }
-//         retry.push(path);
-
-//         match path.parent() {
-//             Some(p) => {
-//                 paths.push(p);
-//                 continue;
-//             }
-//             None => {
-//                 return Err(io::Error::other("failed to create whole tree"));
-//             }
-//         }
-//     }
-// }
 
 pub fn remove_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     let path = path.as_ref();
