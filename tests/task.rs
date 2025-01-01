@@ -2,7 +2,6 @@ use pneuma::uthread::{spawn, yield_now};
 
 #[test]
 fn a_smoke_test() {
-    dbg!("a_smoke_test 0");
     let handle = spawn(|| {
         pneuma::uthread::yield_now();
     });

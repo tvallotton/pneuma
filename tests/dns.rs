@@ -7,7 +7,6 @@ fn wikipedia() {
         .unwrap()
         .next()
         .unwrap();
-    dbg!(ip);
 }
 
 #[test]

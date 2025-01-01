@@ -12,10 +12,7 @@ use std::{
 
 use pneuma::uthread;
 
-use super::{
-    lifecycle::TAKEN,
-    Context,
-};
+use super::{lifecycle::TAKEN, Context};
 
 const PANIC_FLAG_JOIN_HANDLE_SHOULD_NOTIFY: u8 = 1;
 const PANIC_FLAG_UTHREAD_SHOULD_NOTIFY: u8 = 2;
@@ -228,7 +225,7 @@ impl<'scope, T> Drop for ScopedJoinHandle<'scope, T> {
 ///     s.spawn(|| {
 ///         println!("hello from the first scoped thread");
 ///         // We can borrow `a` here.
-///         dbg!(&a);
+///         (&a);
 ///     });
 ///     s.spawn(|| {
 ///         println!("hello from the second scoped thread");
@@ -360,7 +357,7 @@ impl Builder {
     ///     {
     ///         println!("hello from the {:?} scoped thread", uthread::current().name());
     ///         // We can borrow `a` here.
-    ///         dbg!(&a);
+    ///         (&a);
     ///     })
     ///     .unwrap();
     ///     uthread::Builder::new()
@@ -414,7 +411,7 @@ impl Builder {
                         Ordering::Relaxed,
                     )
                     .is_err();
-                dbg!(report_immediately);
+
                 self.scope.decrement_num_running_threads(report_immediately);
             }
         }

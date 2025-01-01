@@ -106,7 +106,7 @@ impl Reactor {
     }
 
     pub fn submit_and_wait(&self) -> io::Result<()> {
-        self.submit(Some(Duration::from_secs(30)))
+        self.submit(Some(Duration::from_millis(10000)))
     }
 
     fn submit(&self, timeout: Option<Duration>) -> io::Result<()> {
@@ -156,7 +156,6 @@ impl Reactor {
             }
             let uthread: &UThread = unsafe { transmute(&event.token().0) };
 
-            dbg!(uthread.name());
             uthread.unpark();
         }
     }

@@ -1,11 +1,10 @@
-version: "3.8"
 services:
-  pneuma: 
+  pneuma:
     container_name: pneuma
-    command: tail -f /dev/null
     build: .
     volumes:
       - ./:/home/app
       - /home/app/target
-    ports: 
+    ports:
       - 8000:8000
+      - 2222:22

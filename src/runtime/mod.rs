@@ -37,11 +37,11 @@ impl Runtime {
 
         // NOTE: we might never return
         // better not leave any variables undropped
-        let res = dbg!(self.executor.context_switch());
+        let res = self.executor.context_switch();
 
         if res.is_err() {
             self.reactor.submit_and_wait()?;
-            dbg!(self.executor.context_switch().ok());
+            self.executor.context_switch().ok();
         };
 
         Ok(())

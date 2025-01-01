@@ -64,7 +64,7 @@ impl<T: Send + Sync + Node> GlobalQueue<T> {
 
         for node in nodes.rev() {
             *node.next() = queue.head;
-            dbg!();
+
             let repr = node.into_repr();
 
             if queue.head.is_null() {
@@ -73,7 +73,7 @@ impl<T: Send + Sync + Node> GlobalQueue<T> {
 
             queue.head = repr;
         }
-        dbg!();
+        ();
     }
 
     pub fn pop_batch_front(&self) -> impl IntoIterator<Item = T> + '_ {

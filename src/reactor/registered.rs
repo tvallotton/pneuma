@@ -38,7 +38,6 @@ where
 
     pub fn reregister(&mut self, interests: mio::Interest) -> io::Result<()> {
         let uthread: usize = unsafe { transmute(pneuma::uthread::current()) };
-        dbg!("lock");
 
         pneuma::reactor::current()
             .mio
@@ -49,7 +48,7 @@ where
             .reregister(&mut self.source, Token(uthread), interests)?;
 
         self.interests = interests;
-        dbg!("release");
+
         Ok(())
     }
 

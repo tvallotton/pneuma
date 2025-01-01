@@ -277,21 +277,22 @@ fn file_test_io_seek_and_write() {
 
 #[test]
 fn file_test_io_seek_shakedown() {
-    //                   01234567890123
     let initial_msg = "qwer-asdf-zxcv";
     let chunk_one: &str = "qwer";
     let chunk_two: &str = "asdf";
     let chunk_three: &str = "zxcv";
     let mut read_mem = [0; 4];
+
     let tmpdir = tmpdir();
+
     let filename = &tmpdir.join("file_rt_io_file_test_seek_shakedown.txt");
     {
         let mut rw_stream = check!(File::create(filename));
+
         check!(rw_stream.write(initial_msg.as_bytes()));
     }
     {
         let mut read_stream = check!(File::open(filename));
-
         check!(read_stream.seek(SeekFrom::End(-4)));
         check!(read_stream.read(&mut read_mem));
         assert_eq!(str::from_utf8(&read_mem).unwrap(), chunk_three);
@@ -545,8 +546,8 @@ fn concurrent_recursive_mkdir() {
                     .name(format!("crmkdir {i}"))
                     .stack_size(100 * 1024)
                     .spawn(move || {
-                        check!(dbg!(fs::create_dir_all(&dir)));
-                        dbg!(i);
+                        check!((fs::create_dir_all(&dir)));
+                        (i);
                     })
                     .unwrap(),
             )
@@ -1038,24 +1039,23 @@ fn binary_file() {
 
 #[test]
 fn write_then_read() {
-    
     let mut bytes = [0; 1024];
-    
+
     rand::thread_rng().fill_bytes(&mut bytes);
-    
+
     let tmpdir = tmpdir();
-    
+
     check!(fs::write(&tmpdir.join("test"), &bytes[..]));
     let v = check!(fs::read(&tmpdir.join("test")));
     assert!(v == &bytes[..]);
-    
+
     check!(fs::write(&tmpdir.join("not-utf8"), &[0xFF]));
 
     error_contains!(fs::read_to_string(&tmpdir.join("not-utf8")), "valid utf-8");
-    
+
     let s = "𐁁𐀓𐀠𐀴𐀍";
     check!(fs::write(&tmpdir.join("utf8"), s.as_bytes()));
-    
+
     let string = check!(fs::read_to_string(&tmpdir.join("utf8")));
     assert_eq!(string, s);
 }

@@ -174,5 +174,8 @@ impl<T> Drop for LocalQueue<T> {
         for i in 0..(tail.wrapping_sub(head)) {
             unsafe { self.buffer.add(i).drop_in_place() };
         }
+        unsafe {
+            Vec::from_raw_parts(self.buffer, 0, self.capacity);
+        }
     }
 }

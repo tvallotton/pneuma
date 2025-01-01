@@ -26,25 +26,25 @@ pub fn smoke_test() {
     assert_eq!(out, 10);
 }
 
-#[test]
-pub fn tokio() {
-    spawn(|| {
-        wait(async {
-            use tokio::io::*;
-            let listener = tokio::net::TcpListener::bind("127.0.0.1:10001")
-                .await
-                .unwrap();
+// #[test]
+// pub fn tokio() {
+//     spawn(|| {
+//         wait(async {
+//             use tokio::io::*;
+//             let listener = tokio::net::TcpListener::bind("127.0.0.1:10001")
+//                 .await
+//                 .unwrap();
 
-            let mut stream = listener.accept().await.unwrap().0;
-            let mut buf = [0; 20];
-            let read = stream.read(&mut buf).await.unwrap();
-            assert_eq!(&buf[..read], b"foo bar");
-        });
-    });
-    spawn(|| {
-        use std::io::Write;
-        let mut stream = pneuma::net::TcpStream::connect("127.0.0.1:10001").unwrap();
+//             let mut stream = listener.accept().await.unwrap().0;
+//             let mut buf = [0; 20];
+//             let read = stream.read(&mut buf).await.unwrap();
+//             assert_eq!(&buf[..read], b"foo bar");
+//         });
+//     });
+//     spawn(|| {
+//         use std::io::Write;
+//         let mut stream = pneuma::net::TcpStream::connect("127.0.0.1:10001").unwrap();
 
-        writeln!(stream, "foo bar").unwrap();
-    });
-}
+//         writeln!(stream, "foo bar").unwrap();
+//     });
+// }

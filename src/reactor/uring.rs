@@ -87,7 +87,7 @@ pub fn write_at(fd: i32, buf: &[u8], offset: u64) -> io::Result<usize> {
         .offset(offset)
         .build();
 
-    let written = dbg!(submit(sqe))?;
+    let written = submit(sqe)?;
 
     Ok(written as _)
 }
@@ -126,7 +126,7 @@ pub(crate) fn open_at(path: &CStr, flags: i32, mode: u32) -> io::Result<OwnedFd>
         .mode(mode)
         .build();
     // Safety: the resource (pathname) is submitted
-    let read = dbg!(submit(sqe))?;
+    let read = submit(sqe)?;
 
     Ok(unsafe { OwnedFd::from_raw_fd(read) })
 }
@@ -155,8 +155,8 @@ pub fn statx(fd: i32, path: Option<CString>, flags: i32) -> io::Result<statx> {
 #[track_caller]
 pub fn close(fd: i32) -> std::io::Result<i32> {
     let sqe = opcode::Close::new(Fd(fd.as_raw_fd())).build();
-    dbg!(std::panic::Location::caller());
-    dbg!(submit(sqe))
+    (std::panic::Location::caller());
+    submit(sqe)
 }
 
 #[track_caller]

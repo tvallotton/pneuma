@@ -1,35 +1,26 @@
-use crossbeam_deque::Steal;
-use global_queue::GlobalQueue;
-use local_queue::LocalQueue;
+use crossbeam_deque::{Injector, Steal};
 use pneuma::utils::IgnorePoison;
 use stack_repository::StackRepository;
 use std::{
-    alloc::GlobalAlloc,
     mem::replace,
-    ptr,
     sync::{
-        atomic::{
-            AtomicU32,
-            Ordering::{Relaxed, Release},
-        },
+        atomic::Ordering::{Relaxed, Release},
         Mutex,
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
 use thread_local::ThreadLocal;
-use worker::{Stealer, Worker};
-use worker_scheduler::WorkerScheduler;
 
+use crossbeam_deque::{Stealer, Worker};
 use pneuma::{
     sys::stack::Stack,
-    uthread::{Context, ReprContext, UThread},
+    uthread::{Context, UThread},
 };
 
 mod global_queue;
 mod local_queue;
 mod stack_repository;
-#[cfg(test)]
-mod test;
+
 mod worker;
 mod worker_scheduler;
 
@@ -41,8 +32,7 @@ pub(crate) struct Executor {
     pub os_thread: ThreadLocal<UThread>,
     pub worker: ThreadLocal<Worker<UThread>>,
     pub stealers: ThreadLocal<Stealer<UThread>>,
-    pub global: GlobalQueue<UThread>,
-    pub worker_scheduler: WorkerScheduler,
+    pub global: Injector<UThread>,
     pub stack_repository: StackRepository,
 }
 
@@ -60,7 +50,6 @@ impl Executor {
 
     pub(crate) fn current_thread(&self) -> &Mutex<(UThread, Instant)> {
         self.current.get_or(|| {
-            self.worker_scheduler.increment();
             let instant = Instant::now();
             let os_thread = UThread::for_os_thread();
             self.os_thread.get_or(|| os_thread.clone());
@@ -88,8 +77,8 @@ impl Executor {
             return thread;
         }
 
-        if cfg!(feature = "unsafe_work_stealing") && !worker.is_blocked.load(Relaxed) {
-            return dbg!(self.steal(worker));
+        if cfg!(feature = "unsafe_work_stealing") {
+            return self.steal(worker);
         }
 
         None
@@ -117,53 +106,41 @@ impl Executor {
         self.worker().pop()
     }
 
+    // TODO: use steal_batch_and_pop
     pub fn try_steal(&self, worker: &Worker<UThread>) {
-        let stolen = self
-            .worker()
-            .push_batch(|| self.global.pop_batch_front().into_iter());
-        dbg!(stolen);
-        if stolen > 0 {
+        let steal = self.global.steal_batch(worker);
+
+        if steal.is_success() {
             return;
         }
 
         let mut stealers: Vec<_> = self.stealers.iter().collect();
-        dbg!(&stealers);
+
         fastrand::shuffle(&mut stealers);
 
         stealers
             .iter()
-            .map(|s| worker.push_batch(|| s.pop().into_iter()))
-            .filter(|x| *x > 1)
+            .filter(|s| s.steal_batch(worker).is_success())
             .take(1)
-            .for_each(|stolen| {
-                dbg!(stolen);
-            });
+            .for_each(|_| {});
     }
 
     pub fn worker(&self) -> &Worker<UThread> {
         self.worker.get_or(|| {
-            let worker = Worker::with_capacity(MAX_WORK_PER_WORKER);
+            let worker = Worker::new_fifo();
             self.stealers.get_or(|| worker.stealer());
             worker
         })
     }
 
     pub fn push(&self, thread: UThread) {
-        if fastrand::u8(0..12) == 0 {
-            return self.global.push_back(thread);
-        }
-
         let worker = self.worker();
 
-        if worker.is_blocked.load(Relaxed) {
-            return self.global.push_back(thread);
+        if MAX_WORK_PER_WORKER <= worker.len() {
+            return self.global.push(thread);
         }
 
-        let Some(thread) = worker.push(thread) else {
-            return;
-        };
-
-        self.global.push_back(thread);
+        worker.push(thread);
     }
 
     pub(crate) fn recycle(&self, cx: &Context) {
@@ -172,20 +149,6 @@ impl Executor {
 
     pub(crate) fn stack(&self, stack_size: usize) -> Option<Stack> {
         self.stack_repository.pop(stack_size)
-    }
-
-    pub(crate) fn block_worker(&self) {
-        self.worker_scheduler.mark_as_blocking();
-
-        let worker = self.worker();
-        let batch = worker.pop_batch();
-        self.global.push_batch_front(batch.into_iter());
-        worker.is_blocked.store(true, Relaxed);
-    }
-
-    pub(crate) fn unblock_worker(&self) {
-        self.worker_scheduler.mark_as_async();
-        self.worker().is_blocked.store(false, Relaxed);
     }
 
     pub(crate) fn free_unused_memory(&self) {

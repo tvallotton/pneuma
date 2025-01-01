@@ -28,6 +28,6 @@ impl IntoRawFd for OwnedFd {
 
 impl Drop for OwnedFd {
     fn drop(&mut self) {
-        dbg!(op::close(self.fd));
+        op::close(self.fd);
     }
 }

@@ -32,7 +32,7 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     if path == Path::new("") {
         return Ok(());
     }
-    dbg!(path);
+
     match create_dir(path) {
         Ok(()) => return Ok(()),
         Err(ref e) if e.kind() == io::ErrorKind::NotFound => {}

@@ -1,5 +1,5 @@
-//! 
-//! 
+//!
+//!
 //! Asynchronous DNS lookups.
 //!
 //! This crate provides asynchronous DNS lookups. It uses the following mechanisms
