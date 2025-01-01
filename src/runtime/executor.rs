@@ -17,11 +17,8 @@ use pneuma::{
     uthread::{Context, UThread},
 };
 
-mod global_queue;
-mod local_queue;
 mod stack_repository;
 
-mod worker;
 mod worker_scheduler;
 
 const MAX_WORK_PER_WORKER: usize = 16;

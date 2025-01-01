@@ -1,8 +1,10 @@
 pub use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, SocketAddrV4, SocketAddrV6};
 pub use tcp::TcpStream;
+pub use tcp_listener::TcpListener;
 pub use to_socket_addr::ToSocketAddrs;
 pub use udp::UdpSocket;
 mod dns;
 mod tcp;
+mod tcp_listener;
 mod to_socket_addr;
 mod udp;

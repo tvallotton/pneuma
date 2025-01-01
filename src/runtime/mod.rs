@@ -49,6 +49,7 @@ impl Runtime {
 
     pub fn increment_tick(&self) -> io::Result<()> {
         let prev = self.tick.fetch_add(1, Release);
+
         if prev % 61 == 0 {
             self.reactor.submit_and_yield()?;
         }

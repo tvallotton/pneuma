@@ -106,15 +106,16 @@ impl Reactor {
     }
 
     pub fn submit_and_wait(&self) -> io::Result<()> {
-        self.submit(Some(Duration::from_millis(10000)))
+        self.submit(Some(Duration::from_secs(1)))
     }
 
     fn submit(&self, timeout: Option<Duration>) -> io::Result<()> {
         let mut is_blocking = self.waker.is_blocking.lock().ignore_poison();
 
         if *is_blocking {
-            self.waker.condvar.wait(is_blocking).ignore_poison();
-
+            // wait for the thread holding the lock to wake the tasks
+            drop(self.waker.condvar.wait(is_blocking).ignore_poison());
+            // return, there is nothing to wake, the other thread already did.
             return Ok(());
         }
 
@@ -131,15 +132,13 @@ impl Reactor {
         *is_blocking = false;
 
         for event in events.iter() {
-            self.unpark_uring();
-            self.unpark_mio();
             match event.token().0 {
                 0 => self.unpark_uring(),
-                _ => self.unpark_mio(),
+                _ => self.unpark_mio()?,
             };
         }
-        drop(guard);
 
+        drop(guard);
         drop(is_blocking);
 
         self.waker.condvar.notify_all();
@@ -147,17 +146,21 @@ impl Reactor {
         result
     }
 
-    pub fn unpark_mio(&self) {
-        let Mio { events, .. } = &mut *self.mio.lock().ignore_poison();
+    pub fn unpark_mio(&self) -> io::Result<()> {
+        let Mio { events, poll } = &mut *self.mio.lock().ignore_poison();
+
+        poll.poll(events, Some(Duration::ZERO))?;
 
         for event in events.iter() {
             if event.token().0 == 0 {
                 continue;
             }
+
             let uthread: &UThread = unsafe { transmute(&event.token().0) };
 
             uthread.unpark();
         }
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]

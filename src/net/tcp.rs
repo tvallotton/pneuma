@@ -13,7 +13,7 @@ use pneuma::reactor::{nonblocking::nonblocking, Registered};
 use super::to_socket_addr::try_each;
 
 pub struct TcpStream {
-    registered: Registered<mio::net::TcpStream>,
+    pub(crate) registered: Registered<mio::net::TcpStream>,
 }
 
 impl TcpStream {
