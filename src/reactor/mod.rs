@@ -21,6 +21,7 @@ pub struct Reactor {
 
     /// the remaining fields will be used to submit and retrieve events.
     pub mio: Mutex<Mio>,
+    #[cfg(target_os = "linux")]
     pub uring: Mutex<io_uring::IoUring>,
 }
 

@@ -6,7 +6,7 @@ use std::{
     mem::zeroed,
     ptr::{null_mut, NonNull},
     sync::{
-        atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU64, AtomicU8, Ordering},
         Mutex,
     },
 };
@@ -49,8 +49,6 @@ pub struct ReprContext {
     pub layout: Layout,
     /// immutable
     pub id: UThreadId,
-
-    pub next: *mut ReprContext,
 }
 
 impl ReprContext {
@@ -79,7 +77,6 @@ impl ReprContext {
             out,
             #[cfg(target_os = "linux")]
             io_uring_result: 0.into(),
-            next: null_mut(),
         });
         Ok(Context { ptr: cx })
     }

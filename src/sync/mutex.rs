@@ -157,18 +157,18 @@ where
         }
         queue.push_back(uthread);
 
-        drop(queue);
+        pneuma::uthread::park_and_unlock(move || drop(queue)).unwrap();
 
         loop {
-            pneuma::uthread::park().ok();
-
             let mut queue = self.queue.lock().ignore_poison();
 
             if queue[0].id() != thread_id {
+                pneuma::uthread::park_and_unlock(|| drop(queue));
                 continue;
             }
 
             let Ok(t) = self.try_lock() else {
+                pneuma::uthread::park_and_unlock(|| drop(queue));
                 continue;
             };
 
