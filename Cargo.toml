@@ -22,7 +22,7 @@ crossbeam-deque = "0.8.5"
 fastrand = "2.1.0"
 libc = "0.2.151"
 thread_local = "1.1.8"
-tokio = { version = "1.42", features = ["rt", "sync"], optional = true }
+tokio = { version = "1.42", features = ["rt"], optional = true }
 mio = { version = "0.8.10", features = [
     "os-poll",
     "net",

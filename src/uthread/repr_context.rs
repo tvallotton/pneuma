@@ -4,9 +4,9 @@ use std::{
     cell::UnsafeCell,
     io,
     mem::zeroed,
-    ptr::{null_mut, NonNull},
+    ptr::NonNull,
     sync::{
-        atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU64, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicU8, Ordering},
         Mutex,
     },
 };
