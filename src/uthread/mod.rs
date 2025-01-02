@@ -17,13 +17,14 @@ use std::fmt;
 use std::sync::atomic::Ordering::*;
 
 pub use builder::Builder;
+pub(crate) use park_and_release::park_and_release;
 pub use scoped::{scope, Scope, ScopedJoinHandle};
 pub use yield_now::yield_now;
-
 mod builder;
 mod context;
 mod join_handle;
 mod lifecycle;
+mod park_and_release;
 mod registers;
 mod repr_context;
 mod scoped;
@@ -208,7 +209,6 @@ pub fn current() -> UThread {
 pub fn park() -> std::io::Result<()> {
     // NOTE: we might never return
     // better not leave any variables undropped
-
     pneuma::runtime::current().park()
 }
 

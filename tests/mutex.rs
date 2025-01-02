@@ -1,5 +1,5 @@
 use pneuma::{sync::Mutex, uthread::yield_now};
-#[ignore = "mutex is unsound, it causes deadlocks"]
+
 #[test]
 fn mutex_hold_across_yield_point() {
     static MUTEX: Mutex<i32> = Mutex::new(0);
@@ -13,7 +13,7 @@ fn mutex_hold_across_yield_point() {
     handle.join();
     assert_eq!(*MUTEX.lock(), 1);
 }
-#[ignore = "mutex is unsound, it causes deadlocks"]
+
 #[test]
 fn mutex_contention() {
     use std::sync::Arc;
@@ -24,7 +24,7 @@ fn mutex_contention() {
         let mutex = mutex.clone();
         let handle = pneuma::uthread::spawn(move || {
             let mut guard = mutex.lock();
-            for _ in 0..10 {
+            for _ in 0..1000 {
                 yield_now();
             }
             *guard += 1;
@@ -38,7 +38,7 @@ fn mutex_contention() {
 
     assert_eq!(*mutex.lock(), 100);
 }
-#[ignore = "mutex is unsound, it causes deadlocks"]
+
 #[test]
 fn mutex_try_lock() {
     static MUTEX: Mutex<i32> = Mutex::new(0);
@@ -53,7 +53,7 @@ fn mutex_get_mut() {
     let mut mutex = Mutex::new(11);
     assert_eq!(*mutex.get_mut(), 11);
 }
-#[ignore = "mutex is unsound, it causes deadlocks"]
+
 #[test]
 fn mutex_into_inner() {
     let mutex = Mutex::new(11);
@@ -92,7 +92,7 @@ fn mutex_poison() {
 
     MUTEX.lock();
 }
-#[ignore = "mutex is unsound, it causes deadlocks"]
+
 #[test]
 fn mutex_try_lock_and_lock() {
     static MUTEX: Mutex<i32> = Mutex::new(0);

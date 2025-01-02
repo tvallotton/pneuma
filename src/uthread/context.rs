@@ -5,12 +5,14 @@ use std::{
     ops::Deref,
     panic::{catch_unwind, AssertUnwindSafe},
     process::abort,
-    ptr::NonNull,
+    ptr::{addr_of_mut, NonNull},
     sync::atomic::{self, Ordering::*},
     thread::panicking,
 };
 
 use pneuma::{runtime::current, sys};
+
+use crate::reactor::op;
 
 use super::{
     builder::Builder,
@@ -104,6 +106,12 @@ impl Context {
     }
 
     pub fn unlock(self) {
+        unsafe {
+            let release_closure = &mut *addr_of_mut!((*self.ptr()).release_closure);
+            release_closure.map(|f| (&mut *f)());
+            self.set_release_closure(None);
+        }
+
         self.is_running.store(false, Release);
 
         if self.has_exited() {
@@ -118,6 +126,10 @@ impl Context {
 
     pub fn as_uthread(&self) -> &UThread {
         unsafe { transmute(self) }
+    }
+    // This method can only be set by the UThread itself
+    pub unsafe fn set_release_closure(&self, release_closure: Option<*mut dyn FnMut()>) {
+        *addr_of_mut!((*self.ptr()).release_closure) = release_closure;
     }
 }
 

@@ -4,7 +4,7 @@ use std::{
     cell::UnsafeCell,
     io,
     mem::zeroed,
-    ptr::NonNull,
+    ptr::{null_mut, NonNull},
     sync::{
         atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicU8, Ordering},
         Mutex,
@@ -49,6 +49,8 @@ pub struct ReprContext {
     pub layout: Layout,
     /// immutable
     pub id: UThreadId,
+    /// synchronized with `is_running`
+    pub release_closure: Option<*mut dyn FnMut()>,
 }
 
 impl ReprContext {
@@ -77,6 +79,7 @@ impl ReprContext {
             out,
             #[cfg(target_os = "linux")]
             io_uring_result: 0.into(),
+            release_closure: None,
         });
         Ok(Context { ptr: cx })
     }
