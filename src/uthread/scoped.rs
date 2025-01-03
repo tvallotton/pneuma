@@ -280,7 +280,7 @@ where
 
     // Wait until all the threads are finished.
     while scope.data.num_running_threads.load(Ordering::Acquire) != 0 {
-        pneuma::uthread::park().unwrap();
+        pneuma::uthread::park();
     }
 
     // Throw any panic from `f`, or the return value of `f` if no thread panicked.

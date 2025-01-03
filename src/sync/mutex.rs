@@ -157,19 +157,19 @@ where
         }
         queue.push_back(uthread);
 
-        pneuma::uthread::park_and_release(move || drop(queue)).unwrap();
+        pneuma::uthread::park_and_release(move || drop(queue));
 
         loop {
             let mut queue = self.queue.lock().ignore_poison();
 
             if queue[0].id() != thread_id {
-                pneuma::uthread::park_and_release(|| drop(queue)).unwrap();
+                pneuma::uthread::park_and_release(|| drop(queue));
 
                 continue;
             }
 
             let Ok(t) = self.try_lock() else {
-                pneuma::uthread::park_and_release(|| drop(queue)).unwrap();
+                pneuma::uthread::park_and_release(|| drop(queue));
                 continue;
             };
 

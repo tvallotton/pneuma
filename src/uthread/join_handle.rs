@@ -124,7 +124,7 @@ impl<T> JoinHandle<T> {
                         .unwrap()
                         .insert(pneuma::uthread::current());
                     self.thread.unpark();
-                    pneuma::uthread::park().unwrap();
+                    pneuma::uthread::park();
                 }
                 FINISHED => unsafe {
                     lifecycle.store(TAKEN, Ordering::Release);

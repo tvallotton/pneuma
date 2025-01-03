@@ -138,7 +138,7 @@ impl TcpStream {
             // Socket is not (yet) connected but haven't hit an
             // error either. So we yield and wait for
             // another event.
-            pneuma::uthread::park()?;
+            pneuma::uthread::park();
         }
     }
     /// Returns the socket address of the remote peer of this TCP connection.

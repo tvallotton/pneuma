@@ -34,7 +34,7 @@ fn unhandled_panic_drop_after_panic() {
             panic!("oh no");
         });
 
-        uthread::park().unwrap();
+        uthread::park();
 
         while !t.is_finished() {
             uthread::yield_now();
@@ -65,7 +65,7 @@ fn handled_panic_join_after_panic() {
             panic!("oh no");
         });
 
-        uthread::park().unwrap();
+        uthread::park();
 
         while !t.is_finished() {
             uthread::yield_now();

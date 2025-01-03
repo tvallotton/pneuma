@@ -19,7 +19,7 @@ where
         if let Poll::Ready(payload) = future.as_mut().poll(&mut cx) {
             return payload;
         };
-        pneuma::uthread::park().unwrap();
+        pneuma::uthread::park();
     }
 }
 

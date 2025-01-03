@@ -18,7 +18,7 @@ fn leak() {
 
 #[test]
 fn a_orphan() {
-    let handle = spawn(|| pneuma::uthread::park().unwrap());
+    let handle = spawn(|| pneuma::uthread::park());
     yield_now();
     drop(handle);
     yield_now();

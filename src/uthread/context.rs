@@ -11,7 +11,6 @@ use std::{
 
 use pneuma::{runtime::current, sys};
 
-
 use super::{
     builder::Builder,
     lifecycle::{FINISHED, NEW, OS_THREAD, RUNNING, TAKEN},
@@ -70,7 +69,7 @@ impl Context {
         new.run_uthread();
 
         loop {
-            pneuma::uthread::park().ok();
+            pneuma::uthread::park();
         }
     }
 

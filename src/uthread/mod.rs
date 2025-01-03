@@ -13,8 +13,8 @@ use self::lifecycle::OS_THREAD;
 pub(crate) use self::repr_context::ReprContext;
 use self::thread_id::UThreadId;
 pub use join_handle::JoinHandle;
-use std::fmt;
 use std::sync::atomic::Ordering::*;
+use std::{fmt, io::ErrorKind};
 
 pub use builder::Builder;
 pub(crate) use park_and_release::park_and_release;
@@ -206,10 +206,14 @@ pub fn current() -> UThread {
         .0
 }
 #[track_caller]
-pub fn park() -> std::io::Result<()> {
+pub fn park() {
     // NOTE: we might never return
     // better not leave any variables undropped
-    pneuma::runtime::current().park()
+    match pneuma::runtime::current().park() {
+        Ok(()) => {}
+        Err(err) if err.kind() == ErrorKind::Interrupted => {}
+        error => error.unwrap(),
+    }
 }
 
 pub fn spawn<F, T>(f: F) -> JoinHandle<T>

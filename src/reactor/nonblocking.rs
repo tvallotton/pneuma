@@ -13,7 +13,7 @@ where
     loop {
         match closure() {
             Err(e) if e.raw_os_error() == Some(libc::EWOULDBLOCK) => {
-                pneuma::uthread::park()?;
+                pneuma::uthread::park();
             }
             other => return other,
         }

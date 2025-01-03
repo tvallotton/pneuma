@@ -41,7 +41,7 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
         let result = thread.cx.io_uring_result.load(Ordering::Relaxed);
 
         if result == i64::MAX {
-            uthread::park()?;
+            uthread::park();
             continue;
         }
 

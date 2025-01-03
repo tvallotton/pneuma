@@ -1,7 +1,6 @@
-use std::io;
 use std::mem::transmute;
 
-pub fn park_and_release(release: impl FnOnce()) -> io::Result<()> {
+pub fn park_and_release(release: impl FnOnce()) {
     let mut impl_fn_mut = into_fn_mut(release);
 
     let dyn_fn_mut: *mut dyn FnMut() = &mut impl_fn_mut;
@@ -16,7 +15,7 @@ pub fn park_and_release(release: impl FnOnce()) -> io::Result<()> {
             .set_release_closure(Some(dyn_fn_mut));
     }
 
-    pneuma::uthread::park()
+    pneuma::uthread::park();
 }
 
 fn into_fn_mut(f: impl FnOnce()) -> impl FnMut() {
