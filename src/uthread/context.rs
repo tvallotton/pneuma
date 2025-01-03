@@ -106,6 +106,7 @@ impl Context {
     }
 
     pub fn unlock(self) {
+        debug_assert!(self.is_running.load(Acquire));
         unsafe {
             let release_closure = &mut *addr_of_mut!((*self.ptr()).release_closure);
             release_closure.map(|f| (&mut *f)());

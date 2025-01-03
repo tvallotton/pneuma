@@ -116,7 +116,8 @@ impl ReprContext {
 
     pub fn for_os_thread() -> Context {
         let cx = unsafe { Self::new::<(), _>(|_| (), Builder::for_os_thread()).unwrap() };
-        cx.lifecycle.store(OS_THREAD, Ordering::Release);
+        cx.lifecycle.store(OS_THREAD, Ordering::Relaxed);
+        cx.is_running.store(true, Ordering::Relaxed);
         cx
     }
 }
