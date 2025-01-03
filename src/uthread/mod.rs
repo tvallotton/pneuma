@@ -11,14 +11,16 @@ pub(crate) use context::Context;
 
 use self::lifecycle::OS_THREAD;
 pub(crate) use self::repr_context::ReprContext;
-use self::thread_id::UThreadId;
+
 pub use join_handle::JoinHandle;
 use std::sync::atomic::Ordering::*;
 use std::{fmt, io::ErrorKind};
 
 pub use builder::Builder;
 pub(crate) use park_and_release::park_and_release;
+pub(crate) use pneuma::reactor::op::park_timeout;
 pub use scoped::{scope, Scope, ScopedJoinHandle};
+pub use thread_id::UThreadId;
 pub use yield_now::yield_now;
 mod builder;
 mod context;

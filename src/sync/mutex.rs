@@ -134,10 +134,7 @@ impl Display for TryLockError {
     }
 }
 
-impl<T> Mutex<T>
-where
-    T: Debug,
-{
+impl<T> Mutex<T> {
     pub const fn new(value: T) -> Mutex<T> {
         let data = std::sync::Mutex::new(value);
         let queue = std::sync::Mutex::new(VecDeque::new());

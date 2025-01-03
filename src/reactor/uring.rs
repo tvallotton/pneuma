@@ -28,10 +28,8 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
     thread.cx.io_uring_result.store(i64::MAX, Ordering::Relaxed);
 
     unsafe {
-        if io_uring.submission().push(&sqe).is_err() {
+        while io_uring.submission().push(&sqe).is_err() {
             io_uring.submit()?;
-
-            io_uring.submission().push(&sqe).ok();
         }
     }
 
@@ -63,6 +61,32 @@ pub fn sleep(dur: Duration) -> io::Result<()> {
         return Ok(());
     }
     Err(err)
+}
+
+// unlike sleep, it may be woken sooner
+pub fn park_timeout(dur: Duration) -> io::Result<()> {
+    let timespec = Timespec::new().sec(dur.as_secs()).nsec(dur.subsec_nanos());
+    let sqe = opcode::Timeout::new(&timespec).build();
+
+    let thread = pneuma::uthread::current();
+    let rt = pneuma::runtime::current();
+    let user_data = unsafe { transmute(thread.clone()) };
+    let sqe = sqe.user_data(user_data);
+
+    let mut io_uring = rt.reactor.uring.lock().ignore_poison();
+
+    thread.cx.io_uring_result.store(i64::MAX, Ordering::Relaxed);
+
+    unsafe {
+        while io_uring.submission().push(&sqe).is_err() {
+            io_uring.submit()?;
+        }
+    }
+
+    drop(io_uring);
+
+    uthread::park();
+    Ok(())
 }
 
 #[inline]
