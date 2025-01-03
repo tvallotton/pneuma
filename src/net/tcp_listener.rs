@@ -1,10 +1,10 @@
 use std::{
-    fmt::{self, Debug, Write},
-    io::{self, ErrorKind},
-    net::{IpAddr, SocketAddr},
+    fmt::{self, Debug},
+    io::{self},
+    net::SocketAddr,
 };
 
-use mio::{event::Iter, Interest};
+use mio::Interest;
 
 use crate::reactor::{op, Registered};
 
@@ -238,7 +238,7 @@ impl fmt::Debug for TcpListener {
     }
 }
 
-impl<'a> Iterator for Incoming<'a> {
+impl Iterator for Incoming<'_> {
     type Item = io::Result<TcpStream>;
     fn next(&mut self) -> Option<io::Result<TcpStream>> {
         Some(self.listener.accept().map(|p| p.0))

@@ -1,10 +1,4 @@
-use std::{
-    fmt::Write,
-    io,
-    mem::zeroed,
-    ptr::null_mut,
-    sync::atomic::{self, AtomicBool},
-};
+use std::{fmt::Write, io, mem::zeroed, ptr::null_mut};
 
 use libc::{SA_NODEFER, SA_ONSTACK, SA_SIGINFO, SS_DISABLE};
 
@@ -41,7 +35,7 @@ impl SignalStack {
         action.sa_flags = SA_NODEFER | SA_SIGINFO | SA_ONSTACK;
         action.sa_sigaction = sigsegv_handler as usize;
 
-        syscall!(sigemptyset, &mut action.sa_mask);
+        syscall!(sigemptyset, &mut action.sa_mask).ok();
 
         #[cfg(target_os = "linux")]
         let signal = libc::SIGSEGV;
@@ -87,7 +81,7 @@ fn sigsegv_handler(_signum: i32, info: &libc::siginfo_t, _data: *mut ()) {
     if thread.cx.stack.is_stackoverflow(unsafe { info.si_addr() }) {
         // Safety: This is fine, since the thread locked mutable access
         // to its internals before its stack overflowed.
-        let res = unsafe { (&mut *thread.cx.ptr.as_ptr()).stack.try_grow() };
+        let res = unsafe { (*thread.cx.ptr.as_ptr()).stack.try_grow() };
 
         if res.is_ok() {
             return;
@@ -113,7 +107,7 @@ pub struct Stderr;
 
 impl Write for Stderr {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        syscall!(write, libc::STDERR_FILENO, s.as_ptr().cast(), s.len());
+        syscall!(write, libc::STDERR_FILENO, s.as_ptr().cast(), s.len()).ok();
         Ok(())
     }
 }
@@ -146,6 +140,7 @@ fn backtrace_stderr(buffer: &[*mut libc::c_void]) {
 }
 
 /// Signal handler installed for SIGSEGV
+#[allow(static_mut_refs)]
 extern "C" fn print_stack_trace() {
     const MAX_FRAMES: usize = 500;
     // Reserve data segment so we don't have to malloc in a signal handler, which might fail

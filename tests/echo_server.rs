@@ -1,6 +1,5 @@
 use pneuma::net::{TcpListener, TcpStream};
 use pneuma::uthread;
-use std::io;
 use std::io::{Read, Write};
 
 fn handle_client(mut stream: TcpStream) {

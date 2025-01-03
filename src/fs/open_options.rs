@@ -4,6 +4,7 @@ use pneuma::fs::File;
 use pneuma::reactor::op;
 use std::ffi::CString;
 use std::io::{self, Error, Result};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
 use super::cstr;
@@ -57,6 +58,8 @@ pub struct OpenOptions {
     create_new: bool,
     #[cfg(unix)]
     pub(crate) mode: libc::mode_t,
+    #[cfg(unix)]
+    pub(crate) custom_flags: i32,
 }
 
 impl OpenOptions {
@@ -86,6 +89,7 @@ impl OpenOptions {
             create_new: false,
             #[cfg(unix)]
             mode: 0o666,
+            custom_flags: 0,
         }
     }
 
@@ -292,7 +296,10 @@ impl OpenOptions {
     }
     #[track_caller]
     fn _open(&self, path: CString) -> Result<File> {
-        let flags = libc::O_CLOEXEC | self.access_mode()? | self.creation_mode()?;
+        let flags = libc::O_CLOEXEC
+            | self.access_mode()?
+            | self.creation_mode()?
+            | (self.custom_flags as libc::c_int & !libc::O_ACCMODE);
 
         let fd = op::open_at(&path, flags, self.mode)?;
 
@@ -333,9 +340,16 @@ impl OpenOptions {
             (_, _, true) => libc::O_CREAT | libc::O_EXCL,
         })
     }
+}
 
-    pub(crate) fn mode(&mut self, mode: libc::mode_t) -> &mut OpenOptions {
+impl OpenOptionsExt for OpenOptions {
+    fn mode(&mut self, mode: u32) -> &mut Self {
         self.mode = mode;
+        self
+    }
+
+    fn custom_flags(&mut self, flags: i32) -> &mut Self {
+        self.custom_flags = flags;
         self
     }
 }

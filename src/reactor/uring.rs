@@ -41,8 +41,7 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
         let result = thread.cx.io_uring_result.load(Ordering::Relaxed);
 
         if result == i64::MAX {
-            uthread::park();
-
+            uthread::park()?;
             continue;
         }
 
@@ -155,7 +154,6 @@ pub fn statx(fd: i32, path: Option<CString>, flags: i32) -> io::Result<statx> {
 #[track_caller]
 pub fn close(fd: i32) -> std::io::Result<i32> {
     let sqe = opcode::Close::new(Fd(fd.as_raw_fd())).build();
-    (std::panic::Location::caller());
     submit(sqe)
 }
 

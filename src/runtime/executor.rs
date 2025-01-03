@@ -1,4 +1,4 @@
-use crossbeam_deque::{Injector, Steal};
+use crossbeam_deque::Injector;
 use pneuma::utils::IgnorePoison;
 use stack_repository::StackRepository;
 use std::{

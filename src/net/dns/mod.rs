@@ -17,7 +17,7 @@
 
 // Non-windows platforms use no unsafe code.
 #![cfg_attr(not(windows), forbid(unsafe_code))]
-#![forbid(missing_docs, future_incompatible)]
+#![forbid(missing_docs)]
 
 #[cfg(unix)]
 mod unix;

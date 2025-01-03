@@ -128,7 +128,7 @@ fn remove_dir_all_recursive(path: &Path) -> io::Result<()> {
         if child.file_type()?.is_dir() {
             remove_dir_all_recursive(&child.path())?;
         } else {
-            pneuma::fs::remove_file(&child.path())?;
+            pneuma::fs::remove_file(child.path())?;
         }
     }
     remove_dir(path)

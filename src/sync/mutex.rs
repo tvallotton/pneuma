@@ -200,7 +200,7 @@ where
     }
 }
 
-impl<'a, T> Drop for MutexGuard<'a, T> {
+impl<T> Drop for MutexGuard<'_, T> {
     fn drop(&mut self) {
         // unlock the thread first, then wake
         unsafe {
@@ -215,27 +215,27 @@ impl<'a, T> Drop for MutexGuard<'a, T> {
     }
 }
 
-impl<'a, T> Deref for MutexGuard<'a, T> {
+impl<T> Deref for MutexGuard<'_, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a, T> DerefMut for MutexGuard<'a, T> {
+impl<T> DerefMut for MutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<'a, T: Debug> Debug for MutexGuard<'a, T> {
+impl<T: Debug> Debug for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let value: &T = self;
         write!(f, "{:?}", value)
     }
 }
 
-impl<'a, T: Display> Display for MutexGuard<'a, T> {
+impl<T: Display> Display for MutexGuard<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let value: &T = self;
         write!(f, "{}", value)

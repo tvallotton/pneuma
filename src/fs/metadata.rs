@@ -337,7 +337,7 @@ impl MetadataExt for Metadata {
             | (mn & 0x000000ff)
     }
     fn st_ino(&self) -> u64 {
-        self.statx.stx_ino as u64
+        self.statx.stx_ino
     }
     fn st_mode(&self) -> u32 {
         self.statx.stx_mode as u32
@@ -346,10 +346,10 @@ impl MetadataExt for Metadata {
         self.statx.stx_nlink as u64
     }
     fn st_uid(&self) -> u32 {
-        self.statx.stx_uid as u32
+        self.statx.stx_uid
     }
     fn st_gid(&self) -> u32 {
-        self.statx.stx_gid as u32
+        self.statx.stx_gid
     }
     fn st_rdev(&self) -> u64 {
         let mj = self.statx.stx_rdev_major as u64;
@@ -361,7 +361,7 @@ impl MetadataExt for Metadata {
             | (mn & 0x000000ff)
     }
     fn st_size(&self) -> u64 {
-        self.statx.stx_size as u64
+        self.statx.stx_size
     }
     fn st_atime(&self) -> i64 {
         self.statx.stx_atime.tv_sec
@@ -376,7 +376,7 @@ impl MetadataExt for Metadata {
         self.statx.stx_mtime.tv_nsec as i64
     }
     fn st_ctime(&self) -> i64 {
-        self.statx.stx_ctime.tv_sec as i64
+        self.statx.stx_ctime.tv_sec
     }
     fn st_ctime_nsec(&self) -> i64 {
         self.statx.stx_ctime.tv_nsec as i64
@@ -385,7 +385,7 @@ impl MetadataExt for Metadata {
         self.statx.stx_blksize as u64
     }
     fn st_blocks(&self) -> u64 {
-        self.statx.stx_blocks as u64
+        self.statx.stx_blocks
     }
 }
 
@@ -662,7 +662,7 @@ impl Permissions {
         }
     }
 
-    pub(crate) fn mode(&self) -> libc::mode_t {
+    pub fn mode(&self) -> libc::mode_t {
         self.mode
     }
 }

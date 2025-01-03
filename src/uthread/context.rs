@@ -7,12 +7,10 @@ use std::{
     process::abort,
     ptr::{addr_of_mut, NonNull},
     sync::atomic::{self, Ordering::*},
-    thread::panicking,
 };
 
 use pneuma::{runtime::current, sys};
 
-use crate::reactor::op;
 
 use super::{
     builder::Builder,
@@ -109,7 +107,7 @@ impl Context {
         debug_assert!(self.is_running.load(Acquire));
         unsafe {
             let release_closure = &mut *addr_of_mut!((*self.ptr()).release_closure);
-            release_closure.map(|f| (&mut *f)());
+            release_closure.map(|f| (*f)());
             self.set_release_closure(None);
         }
 

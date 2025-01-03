@@ -1,7 +1,5 @@
 use pneuma::future::wait;
-use pneuma::uthread::spawn;
 use std::future::{poll_fn, Future};
-use std::io::Read;
 use std::task::Poll;
 
 // a future that returns pending once.

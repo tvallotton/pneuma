@@ -20,7 +20,7 @@ pub struct UdpSocket {
 
 impl UdpSocket {
     pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
-        try_each(addr, |addr| Self::_bind(addr))
+        try_each(addr, Self::_bind)
     }
 
     pub fn _bind(addr: SocketAddr) -> io::Result<UdpSocket> {

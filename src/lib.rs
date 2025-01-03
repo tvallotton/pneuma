@@ -34,10 +34,10 @@
 #![allow(clippy::fn_to_numeric_cast)]
 #![allow(clippy::new_ret_no_self)]
 #![allow(clippy::len_without_is_empty)]
+#![forbid(future_incompatible)]
 // #![feature(thread_id_value)]
 
 extern crate self as pneuma;
-use runtime::current as runtime;
 
 pub(crate) mod runtime;
 pub(crate) mod sys;
