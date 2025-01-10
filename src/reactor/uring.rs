@@ -1,3 +1,4 @@
+use io_uring::opcode::AsyncCancel;
 use io_uring::squeue;
 use io_uring::{
     opcode::{self, OpenAt, Statx},
@@ -9,6 +10,7 @@ use pneuma::uthread;
 use pneuma::utils::IgnorePoison;
 use squeue::Entry as Event;
 
+use std::time::Instant;
 use std::{
     ffi::{CStr, CString},
     io::{self},
@@ -54,12 +56,20 @@ pub fn submit(sqe: squeue::Entry) -> io::Result<i32> {
 pub fn sleep(dur: Duration) -> io::Result<()> {
     let timespec = Timespec::new().sec(dur.as_secs()).nsec(dur.subsec_nanos());
     let sqe = opcode::Timeout::new(&timespec).build();
+
+    #[cfg(debug_assertions)]
+    let start = Instant::now();
+
     let Err(err) = submit(sqe) else {
         unreachable!();
     };
+
+    debug_assert!(dur < start.elapsed());
+
     if let Some(libc::ETIME) = err.raw_os_error() {
         return Ok(());
     }
+
     Err(err)
 }
 
@@ -86,6 +96,15 @@ pub fn park_timeout(dur: Duration) -> io::Result<()> {
     drop(io_uring);
 
     uthread::park();
+    let sqe = AsyncCancel::new(user_data).build();
+    let mut io_uring = rt.reactor.uring.lock().ignore_poison();
+
+    unsafe {
+        while io_uring.submission().push(&sqe).is_err() {
+            io_uring.submit()?;
+        }
+    }
+
     Ok(())
 }
 

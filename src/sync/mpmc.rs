@@ -149,6 +149,8 @@ mod counter;
 mod error;
 mod list;
 mod select;
+#[cfg(test)]
+mod tests;
 mod utils;
 mod waker;
 mod zero;
@@ -230,7 +232,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 /// # Examples
 ///
 /// ```no_run
-/// use pneuma::sync::mpsc::sync_channel;
+/// use pneuma::sync::mpmc::sync_channel;
 /// use pneuma::uthread;
 ///
 /// let (sender, receiver) = sync_channel(1);

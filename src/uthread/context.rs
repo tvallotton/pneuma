@@ -55,7 +55,12 @@ impl Context {
     }
 
     pub fn switch_to(self, new: Context) -> Result<(), ()> {
+        new.assert_os_thread_integrity();
+        self.assert_os_thread_integrity();
+
         new.lock()?;
+        debug_assert!(self.is_running.load(Acquire));
+
         let [old, _] = unsafe { sys::switch_context(self, new) };
         old.unlock();
 
@@ -97,13 +102,14 @@ impl Context {
     }
 
     pub fn lock(&self) -> Result<bool, ()> {
+        self.assert_os_thread_integrity();
         self.is_running
             .compare_exchange(false, true, Acquire, Relaxed)
             .map_err(|_| ())
     }
 
     pub fn unlock(self) {
-        debug_assert!(self.is_running.load(Acquire));
+        debug_assert!(self.is_running.load(Acquire), "{:?}", self.name);
         unsafe {
             let release_closure = &mut *addr_of_mut!((*self.ptr()).release_closure);
             release_closure.map(|f| (*f)());
@@ -128,6 +134,16 @@ impl Context {
     // This method can only be set by the UThread itself
     pub unsafe fn set_release_closure(&self, release_closure: Option<*mut dyn FnMut()>) {
         *addr_of_mut!((*self.ptr()).release_closure) = release_closure;
+    }
+
+    pub(crate) fn assert_os_thread_integrity(&self) {
+        debug_assert!(
+            self.lifecycle.load(Acquire) != OS_THREAD
+                || self.os_thread_id == std::thread::current().id(),
+            "An os thread attempted to context switch to another thread's stack. {:?} vs {:?}",
+            self.name,
+            std::thread::current().name()
+        );
     }
 }
 

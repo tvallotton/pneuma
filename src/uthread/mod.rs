@@ -13,7 +13,7 @@ use self::lifecycle::OS_THREAD;
 pub(crate) use self::repr_context::ReprContext;
 
 pub use join_handle::JoinHandle;
-use std::sync::atomic::Ordering::*;
+use std::sync::atomic::Ordering::{self, *};
 use std::{fmt, io::ErrorKind};
 
 pub use builder::Builder;
@@ -30,9 +30,10 @@ mod park_and_release;
 mod registers;
 mod repr_context;
 mod scoped;
+#[cfg(test)]
+mod tests;
 mod thread_id;
 mod yield_now;
-
 /// A handle to a thread.
 ///
 /// Threads are represented via the `UThread` type, which you can get in one of
@@ -162,6 +163,7 @@ impl UThread {
         if !already_queued {
             self.queue();
         }
+        self.assert_is_queued();
     }
 
     #[inline]
@@ -169,12 +171,20 @@ impl UThread {
         if let OS_THREAD = self.cx.lifecycle.load(Relaxed) {
             return;
         }
+
         pneuma::runtime::current().executor.push(self.clone())
     }
 
     pub(crate) fn for_os_thread() -> UThread {
         let cx = Context::for_os_thread();
         UThread { cx }
+    }
+
+    pub(crate) fn assert_is_queued(&self) {
+        debug_assert!(
+            self.id() != current().id() && self.cx.is_queued.load(Ordering::Acquire),
+            "Thread is not queued"
+        )
     }
 }
 

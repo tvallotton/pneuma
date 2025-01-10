@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicU8, Ordering},
         Mutex,
     },
+    thread::ThreadId,
 };
 
 use std::alloc::alloc;
@@ -51,6 +52,9 @@ pub struct ReprContext {
     pub id: UThreadId,
     /// synchronized with `is_running`
     pub release_closure: Option<*mut dyn FnMut()>,
+
+    #[cfg(debug_assertions)]
+    pub os_thread_id: ThreadId,
 }
 
 impl ReprContext {
@@ -80,6 +84,8 @@ impl ReprContext {
             #[cfg(target_os = "linux")]
             io_uring_result: 0.into(),
             release_closure: None,
+            #[cfg(debug_assertions)]
+            os_thread_id: std::thread::current().id(),
         });
         Ok(Context { ptr: cx })
     }

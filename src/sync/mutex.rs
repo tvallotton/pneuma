@@ -3,7 +3,7 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
-    sync::PoisonError,
+    sync::{LockResult, PoisonError},
 };
 
 use pneuma::{uthread::UThread, utils::IgnorePoison};

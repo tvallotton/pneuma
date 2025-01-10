@@ -3,6 +3,7 @@ use pneuma::utils::IgnorePoison;
 use stack_repository::StackRepository;
 use std::{
     mem::replace,
+    ops,
     sync::{
         atomic::Ordering::{Relaxed, Release},
         Mutex,
@@ -39,6 +40,7 @@ impl Executor {
 
         new.cx.is_queued.store(false, Relaxed);
         let old = self.set_current(new.clone());
+
         if (old != new) && !new.cx.has_exited() {
             old.cx.switch_to(new.cx)?;
         };
@@ -62,10 +64,9 @@ impl Executor {
 
     fn pop(&self) -> Option<UThread> {
         let worker = self.worker();
-        let os_thread = self.pop_os_thread(worker);
 
-        if os_thread.is_some() {
-            return os_thread;
+        if fastrand::usize(0..(worker.len() + 1)) != 0 {
+            return self.pop_os_thread();
         };
 
         let thread = worker.pop();
@@ -78,14 +79,10 @@ impl Executor {
             return self.steal(worker);
         }
 
-        None
+        self.pop_os_thread()
     }
 
-    fn pop_os_thread(&self, worker: &Worker<UThread>) -> Option<UThread> {
-        if fastrand::usize(0..(worker.len() + 1)) != 0 {
-            return None;
-        };
-
+    fn pop_os_thread(&self) -> Option<UThread> {
         let os_thread = self.os_thread.get().cloned()?;
 
         os_thread
@@ -94,7 +91,9 @@ impl Executor {
             .compare_exchange(true, false, Release, Relaxed)
             .ok()?;
 
-        self.os_thread.get().cloned()
+        self.os_thread.get().cloned().inspect(|thread| {
+            thread.cx.assert_os_thread_integrity();
+        })
     }
 
     pub fn steal(&self, worker: &Worker<UThread>) -> Option<UThread> {
@@ -131,6 +130,8 @@ impl Executor {
     }
 
     pub fn push(&self, thread: UThread) {
+        thread.cx.assert_os_thread_integrity();
+
         let worker = self.worker();
 
         if MAX_WORK_PER_WORKER <= worker.len() {

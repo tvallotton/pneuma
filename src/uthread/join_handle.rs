@@ -1,4 +1,6 @@
-use std::{any::Any, io, marker::PhantomData, panic::resume_unwind, sync::atomic::Ordering};
+use std::{
+    any::Any, io, marker::PhantomData, panic::resume_unwind, sync::atomic::Ordering, thread::Thread,
+};
 
 use super::{
     builder::Builder,
